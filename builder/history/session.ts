@@ -24,9 +24,11 @@ export function createEditorSession(
     },
 
     execute(command: Command): CommandApplyResult {
-      const inverse = commandEngine.invert(document, command);
       const result = commandEngine.apply(document, command);
       if (result.ok) {
+        // invert() reads pre-apply node state (parent/index/prior prop values),
+        // so it must run against the same `document` apply() just succeeded against.
+        const inverse = commandEngine.invert(document, command);
         document = result.result.document;
         history.push(command, inverse);
       }
