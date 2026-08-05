@@ -4,7 +4,7 @@ import { generateIdFromEntropySize } from "lucia";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { defaultPortfolioData } from "@/lib/schema";
+import { createDefaultDocument } from "@/lib/builder";
 import {
   publishPortfolio,
   unpublishPortfolio,
@@ -26,7 +26,7 @@ export async function createPortfolio(templateId: string) {
   }
 
   const id = generateIdFromEntropySize(10);
-  const content = defaultPortfolioData();
+  const content = createDefaultDocument(templateId, id);
 
   await prisma.portfolio.create({
     data: {
@@ -34,7 +34,7 @@ export async function createPortfolio(templateId: string) {
       userId: user.id,
       title: "Untitled Portfolio",
       templateId,
-      content,
+      content: content as object,
     },
   });
 

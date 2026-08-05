@@ -1,5 +1,5 @@
 import { createPortfolioFromForm } from "@/app/(dashboard)/_actions";
-import { TEMPLATE_OPTIONS } from "@/components/templates";
+import { TEMPLATE_OPTIONS } from "@/lib/builder";
 import { Button } from "@/components/ui/button";
 
 export default function NewPortfolioPage() {

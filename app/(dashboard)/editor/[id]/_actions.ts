@@ -2,9 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { publish as publishDocument } from "@/builder/publish/publish";
+import { deserializeDocument } from "@/builder/document/serialize";
+import type { ValidationError } from "@/builder/document/types";
 import { getSession } from "@/lib/auth";
+import {
+  createPortfolioRegistry,
+  getProfileHeaderName,
+  parseBuilderContent,
+  validatePortfolioDocument,
+} from "@/lib/builder";
 import { prisma } from "@/lib/db";
-import { PortfolioDataSchema, parsePortfolioContent } from "@/lib/schema";
 import { generateSlug } from "@/lib/slug";
 
 async function requireOwnedPortfolio(portfolioId: string) {
@@ -25,15 +33,30 @@ async function requireOwnedPortfolio(portfolioId: string) {
   return { user, portfolio };
 }
 
-export async function savePortfolio(portfolioId: string, data: unknown) {
+type SaveDocumentResult =
+  | { success: true }
+  | { success: false; errors: readonly ValidationError[] };
+
+export async function saveDocument(
+  portfolioId: string,
+  documentJson: string,
+): Promise<SaveDocumentResult> {
   const { portfolio } = await requireOwnedPortfolio(portfolioId);
-  const parsed = PortfolioDataSchema.parse(data);
+  const document = deserializeDocument(documentJson);
+  const registry = createPortfolioRegistry();
+  const validation = validatePortfolioDocument(document, registry);
+
+  if (!validation.valid) {
+    return { success: false, errors: validation.errors };
+  }
+
+  const displayName = getProfileHeaderName(document) || portfolio.title;
 
   await prisma.portfolio.update({
     where: { id: portfolioId },
     data: {
-      content: parsed as object,
-      title: parsed.profile.name || portfolio.title,
+      content: JSON.parse(documentJson) as object,
+      title: displayName,
       updatedAt: new Date(),
     },
   });
@@ -45,18 +68,40 @@ export async function savePortfolio(portfolioId: string, data: unknown) {
   return { success: true };
 }
 
-export async function publishPortfolio(portfolioId: string) {
+type PublishPortfolioResult = {
+  success: boolean;
+  slug?: string | null;
+  error?: string;
+  errors?: readonly ValidationError[];
+};
+
+export async function publishPortfolio(portfolioId: string): Promise<PublishPortfolioResult> {
   const { portfolio } = await requireOwnedPortfolio(portfolioId);
-  const content = parsePortfolioContent(portfolio.content);
-  const slug =
-    portfolio.slug ?? (await generateSlug(content.profile.name || portfolio.title));
+  const document = parseBuilderContent(portfolio.content);
+
+  if (!document) {
+    return {
+      success: false,
+      error: "Portfolio content could not be parsed. Save your work and try again.",
+    };
+  }
+
+  const registry = createPortfolioRegistry();
+  const outcome = publishDocument(document, registry);
+
+  if (!outcome.ok) {
+    return { success: false, errors: outcome.errors };
+  }
+
+  const displayName = getProfileHeaderName(document) || portfolio.title;
+  const slug = portfolio.slug ?? (await generateSlug(displayName));
 
   await prisma.portfolio.update({
     where: { id: portfolioId },
     data: {
       status: "PUBLISHED",
       slug,
-      title: content.profile.name || portfolio.title,
+      title: displayName,
     },
   });
 

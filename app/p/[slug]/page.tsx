@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { TEMPLATE_REGISTRY } from "@/components/templates";
+import {
+  createPortfolioRegistry,
+  getProfileHeaderBio,
+  getProfileHeaderName,
+  parseBuilderContent,
+  renderPublished,
+} from "@/lib/builder";
 import { prisma } from "@/lib/db";
-import { parsePortfolioContent } from "@/lib/schema";
 
 export const revalidate = false;
 
@@ -22,11 +27,17 @@ export async function generateMetadata({
     return { title: "Portfolio not found" };
   }
 
-  const data = parsePortfolioContent(portfolio.content);
-  const description = data.profile.bio.slice(0, 160);
+  const document = parseBuilderContent(portfolio.content);
+  if (!document) {
+    return { title: portfolio.title };
+  }
+
+  const name = getProfileHeaderName(document) || portfolio.title;
+  const bio = getProfileHeaderBio(document);
+  const description = bio.slice(0, 160);
 
   return {
-    title: data.profile.name || portfolio.title,
+    title: name,
     description: description || undefined,
   };
 }
@@ -42,9 +53,19 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
     notFound();
   }
 
-  const data = parsePortfolioContent(portfolio.content);
-  const Template =
-    TEMPLATE_REGISTRY[portfolio.templateId] ?? TEMPLATE_REGISTRY.executive;
+  const document = parseBuilderContent(portfolio.content);
+  if (!document) {
+    notFound();
+  }
 
-  return <Template data={data} />;
+  const registry = createPortfolioRegistry();
+
+  return (
+    <div
+      className="min-h-screen bg-background px-4 py-8 text-foreground"
+      style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
+    >
+      <div className="mx-auto max-w-[390px]">{renderPublished(document, registry)}</div>
+    </div>
+  );
 }

@@ -20,6 +20,27 @@ function ImageRenderer({
 }) {
   const src = typeof props.src === "string" ? props.src : "";
   const alt = typeof props.alt === "string" ? props.alt : "";
+
+  if (!src) {
+    return (
+      <div
+        data-node-type="Image"
+        data-node-id={id}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "6rem",
+          background: "#f1f1f1",
+          color: "#888",
+          fontSize: "0.75rem",
+        }}
+      >
+        No image selected
+      </div>
+    );
+  }
+
   return <img data-node-type="Image" data-node-id={id} src={src} alt={alt} />;
 }
 

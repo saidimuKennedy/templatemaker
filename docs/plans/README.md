@@ -39,28 +39,39 @@ builder/
 │   ├── types.ts                     done — Command (CreateNode/MoveNode/DeleteNode/
 │   │                                        UpdateProps/UpdateStyles), CommandEngine, History
 │   ├── commands.ts                  done — createCommandEngine() (apply + invert)
-│   ├── history.ts                   NOT DONE — see Plan 01
-│   ├── session.ts                   NOT DONE — see Plan 01
-│   └── index.ts                     NOT DONE — see Plan 01
+│   ├── history.ts                   done — BuilderHistory, createHistory()
+│   ├── session.ts                   done — EditorSession, createEditorSession()
+│   └── index.ts                     done (barrel)
 ├── plugins/
 │   ├── types.ts                     done — Plugin, PluginContext
-│   └── index.ts                     NOT DONE — see Plan 01
+│   ├── index.ts                     done (barrel)
+│   └── portfolio/                   done — see Plan 07 (ProfileHeader/ProjectCard/SkillGroup/LinksList)
 ├── ai/
 │   ├── types.ts                     done — AIProvider, AIGenerateRequest, AIGenerateResult
-│   └── index.ts                     NOT DONE — see Plan 01
-├── components/                      done — see Plan 02
+│   └── index.ts                     done (barrel; no implementation — AI generation is out of v1 scope)
+├── components/                      done — see Plan 02 (Page/Section/Container/Stack/Heading/Text/Image/Button)
 ├── styles/                          done — see Plan 03
 ├── inspector/                       done — see Plan 04
 ├── publish/                         done — see Plan 05
-├── canvas/                          done — see Plan 06
-└── plugins/portfolio/               NOT DONE — see Plan 07
+└── canvas/                          done — see Plan 06
 ```
 
-Plans 01–06 are all verified complete (implemented, typechecked, and
-smoke-tested for real — not just read). The engine itself now covers
-Document Model → Registry → Renderer → Command API/History → Style
-Engine → Inspector → Publish → Canvas, matching
-`docs/06-development-roadmap.md`'s full build order.
+Plans 01–10 are all implemented and verified (typechecked, smoke-tested,
+and — for 09/10 — `npm run build`/`npm run lint` checked). The engine
+covers Document Model → Registry → Renderer → Command API/History →
+Style Engine → Inspector → Publish → Canvas, matching
+`docs/06-development-roadmap.md`'s full build order, and it has fully
+replaced the old step-wizard editor in the app (Plans 07–10). See
+`lib/builder/*` for the app-level registry/seed/content glue, and
+`components/editor/{Canvas,Inspector,Toolbox,EditorClient}.tsx` for the
+editor UI.
+
+Known gaps carried forward into Plans 11–12 below: the Inspector never
+wires up style editing (props only), and the built-in components in
+`builder/components/*` don't apply `props.style` at all (only the
+Plan 07 portfolio components do) — see Plan 11. Layout is also limited
+to `Stack`'s bare flex (no `justify`/`align`, no `Grid`, no
+`Navbar`/`Footer`) — see Plan 12.
 
 ## Plans 07–10: replacing the existing wizard editor
 
@@ -107,6 +118,8 @@ plan's Acceptance Criteria).
 | 08 | [Document Adapter & Seed Templates](./08-document-adapter-and-seed-templates.md) | `lib/builder/` | 02, 04 (already done) | 07 (pinned to its contract — see plan) |
 | 09 | [New Editor UI & App Integration](./09-new-editor-ui-and-app-integration.md) | `components/editor/*`, `app/(dashboard)/editor/*`, `app/(dashboard)/_actions.ts`, `app/p/[slug]/*` | 07, 08 | — |
 | 10 | [Cleanup: Remove the Wizard](./10-cleanup-remove-wizard.md) | deletes `components/editor/steps/*`, `WizardShell.tsx`, `PreviewPane.tsx`, `components/templates/*`, `lib/schema.ts`, `lib/validations.ts` | 09 (verified working) | do last |
+| 11 | [Style Editing UI](./11-style-editing-ui.md) | `builder/components/*` (fix), `builder/styles/fields.ts`, `components/editor/{StyleInspector,Inspector}.tsx` | 03, 04, 09 (already done) | 12 |
+| 12 | [Layout Primitives](./12-layout-primitives.md) | `builder/components/{stack,grid,navbar,footer,index}` | 02 (already done) | 11 |
 
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals
@@ -125,7 +138,22 @@ throughput; just don't touch `builder/history/`, `builder/plugins/`, or
 `builder/ai/`. Plan 06 (Canvas) is the one true "do last" — it is the
 one place the roadmap explicitly warns against starting early, and it
 needs 02 and 03 (components + styles) to have something real to select
-and drag.
+and drag. (Plans 01–10 are all done now — this paragraph is historical
+context for how they were sequenced, kept for anyone reading this file
+top to bottom.)
+
+Plans 11 and 12 both stem from the same review: the engine can
+technically store/resolve arbitrary per-node styles, but (a) no UI ever
+lets a user set them, and (b) most built-in components don't even apply
+resolved styles to their rendered output, and (c) layout primitives are
+too bare to reproduce common patterns (a navbar with space-between, a
+CSS grid). Plan 11 fixes (a) and (b); Plan 12 fixes (c). They touch
+disjoint files (`components/editor/*` + a small `builder/components/*`
+style-prop fix vs. new/modified `builder/components/*` files) and can
+run in parallel — but if both land in the same pass, apply Plan 11's
+"every component must render `props.style`" fix consistently to Plan
+12's new `Grid`/`Navbar`/`Footer` components too, not just the original
+8. Neither depends on the other's actual output.
 
 ## Rules that apply to every plan
 

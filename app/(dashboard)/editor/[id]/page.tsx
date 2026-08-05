@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { createDefaultDocument, parseBuilderContent } from "@/lib/builder";
 import { prisma } from "@/lib/db";
-import { parsePortfolioContent } from "@/lib/schema";
 import { EditorClient } from "@/components/editor/EditorClient";
 
 type EditorPageProps = {
@@ -22,7 +22,9 @@ export default async function EditorPage({ params }: EditorPageProps) {
     notFound();
   }
 
-  const content = parsePortfolioContent(portfolio.content);
+  const initialDocument =
+    parseBuilderContent(portfolio.content) ??
+    createDefaultDocument(portfolio.templateId, portfolio.id);
 
   return (
     <div className="space-y-4">
@@ -34,8 +36,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
       </div>
       <EditorClient
         portfolioId={portfolio.id}
-        templateId={portfolio.templateId}
-        initialData={content}
+        initialDocument={initialDocument}
         status={portfolio.status}
       />
     </div>
