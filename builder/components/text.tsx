@@ -1,0 +1,44 @@
+import type { ComponentDefinition } from "../registry/types";
+
+function TextIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="2" y1="12" x2="10" y2="12" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function TextRenderer({
+  id,
+  props,
+}: {
+  readonly id: string;
+  readonly props: Record<string, unknown>;
+  readonly children?: React.ReactNode;
+}) {
+  const text = typeof props.text === "string" ? props.text : "Text";
+  return (
+    <p data-node-type="Text" data-node-id={id}>
+      {text}
+    </p>
+  );
+}
+
+export const TextComponent: ComponentDefinition = {
+  type: "Text",
+  category: "Content",
+  icon: TextIcon,
+  renderer: TextRenderer,
+  defaultProps: { text: "Text" },
+  propertySchema: [
+    {
+      key: "text",
+      label: "Text",
+      type: "string",
+      defaultValue: "Text",
+    },
+  ],
+  constraints: { allowedChildren: [] },
+};
