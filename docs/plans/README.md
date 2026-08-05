@@ -48,12 +48,43 @@ builder/
 ├── ai/
 │   ├── types.ts                     done — AIProvider, AIGenerateRequest, AIGenerateResult
 │   └── index.ts                     NOT DONE — see Plan 01
-├── components/                      empty — see Plan 02
-├── styles/                          empty — see Plan 03
-├── inspector/                       empty — see Plan 04
-├── publish/                         empty — see Plan 05
-└── canvas/                          empty — see Plan 06 (do last)
+├── components/                      done — see Plan 02
+├── styles/                          done — see Plan 03
+├── inspector/                       done — see Plan 04
+├── publish/                         done — see Plan 05
+├── canvas/                          done — see Plan 06
+└── plugins/portfolio/               NOT DONE — see Plan 07
 ```
+
+Plans 01–06 are all verified complete (implemented, typechecked, and
+smoke-tested for real — not just read). The engine itself now covers
+Document Model → Registry → Renderer → Command API/History → Style
+Engine → Inspector → Publish → Canvas, matching
+`docs/06-development-roadmap.md`'s full build order.
+
+## Plans 07–10: replacing the existing wizard editor
+
+This repo already has a working step-wizard portfolio editor
+(`components/editor/steps/*`, `components/editor/WizardShell.tsx`,
+`components/editor/PreviewPane.tsx`, two fixed templates in
+`components/templates/*`, all driven by a fixed `PortfolioData` shape in
+`lib/schema.ts`). Plans 07–10 replace that with the `builder/` engine
+end to end: new "Business" components, a document-based content model,
+a canvas-based editor UI, and finally deletion of the old code. This is
+a real product cutover (it changes what gets saved to `Portfolio.content`
+and what renders on published pages), not just internal engine work —
+treat file deletions and schema-adjacent decisions with the care the
+top-level agent instructions already call for.
+
+Confirmed decisions this tier is built against (do not re-litigate):
+- **No production data migration needed** — `Portfolio.content` today
+  has no real user data in the old shape, so Plans 08/09 reset the
+  content shape outright rather than writing an old→new converter.
+- **New Business components, not generic-only composition** — Plan 07
+  builds `ProfileHeader`/`ProjectCard`/`SkillGroup`/`LinksList` as real
+  `builder/plugins/portfolio/*` components mirroring the wizard's actual
+  fields, rather than approximating them with only the generic
+  Layout/Content primitives from Plan 02.
 
 Repo context: Next.js 16 / React 19 / TypeScript strict app at the repo
 root. `nanoid` and `zod` are already dependencies — reuse them, don't add
@@ -72,6 +103,19 @@ plan's Acceptance Criteria).
 | 04 | [Inspector / Property Engine](./04-inspector-property-engine.md) | `builder/inspector/` | 01 | 02, 03, 05 |
 | 05 | [Publish Engine](./05-publish-engine.md) | `builder/publish/` | 01 | 02, 03, 04 |
 | 06 | [Canvas Engine](./06-canvas-engine.md) | `builder/canvas/` | 01, 02, 03 | do last, after those land |
+| 07 | [Portfolio Business Components](./07-portfolio-business-components.md) | `builder/plugins/portfolio/` | 02 (already done) | 08 |
+| 08 | [Document Adapter & Seed Templates](./08-document-adapter-and-seed-templates.md) | `lib/builder/` | 02, 04 (already done) | 07 (pinned to its contract — see plan) |
+| 09 | [New Editor UI & App Integration](./09-new-editor-ui-and-app-integration.md) | `components/editor/*`, `app/(dashboard)/editor/*`, `app/(dashboard)/_actions.ts`, `app/p/[slug]/*` | 07, 08 | — |
+| 10 | [Cleanup: Remove the Wizard](./10-cleanup-remove-wizard.md) | deletes `components/editor/steps/*`, `WizardShell.tsx`, `PreviewPane.tsx`, `components/templates/*`, `lib/schema.ts`, `lib/validations.ts` | 09 (verified working) | do last |
+
+Plans 07 and 08 can run in parallel: Plan 08's seed documents only
+reference Plan 07's component `type` strings and prop keys as literals
+(both plans pin the exact same contract — see each doc's "Contract other
+plans depend on" section), they don't need Plan 07's files to physically
+exist yet. Plan 09 needs both finished since it imports real code from
+each. Plan 10 is destructive (file deletion) and must not start until
+Plan 09 is manually verified working — see that plan's acceptance
+criteria.
 
 Plan 01 is small (finishing History + barrels) and should land first so
 `builder/index.ts` exports cleanly — but plans 02–05 only actually need
