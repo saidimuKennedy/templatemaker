@@ -10,5 +10,6 @@ export * from "./document";
 export * from "./registry";
 export * from "./renderer";
 export * from "./history";
+export * from "./canvas";
 export * from "./plugins";
 export * from "./ai";
