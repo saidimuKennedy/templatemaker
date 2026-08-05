@@ -24,8 +24,13 @@ function SectionRenderer({
   readonly children?: React.ReactNode;
 }) {
   const padding = typeof props.padding === "string" ? props.padding : "md";
+  const style = props.style as React.CSSProperties | undefined;
   return (
-    <div data-node-type="Section" data-node-id={id} style={{ padding: PADDING_MAP[padding] ?? PADDING_MAP.md }}>
+    <div
+      data-node-type="Section"
+      data-node-id={id}
+      style={{ padding: PADDING_MAP[padding] ?? PADDING_MAP.md, ...style }}
+    >
       {children}
     </div>
   );

@@ -18,17 +18,18 @@ function ButtonRenderer({
 }) {
   const label = typeof props.label === "string" ? props.label : "Button";
   const href = typeof props.href === "string" && props.href.length > 0 ? props.href : undefined;
+  const style = props.style as React.CSSProperties | undefined;
 
   if (href) {
     return (
-      <a data-node-type="Button" data-node-id={id} href={href} role="button">
+      <a data-node-type="Button" data-node-id={id} href={href} role="button" style={style}>
         {label}
       </a>
     );
   }
 
   return (
-    <button type="button" data-node-type="Button" data-node-id={id}>
+    <button type="button" data-node-type="Button" data-node-id={id} style={style}>
       {label}
     </button>
   );

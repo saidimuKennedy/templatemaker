@@ -31,7 +31,12 @@ function HeadingRenderer({
 }) {
   const level = normalizeLevel(props.level);
   const text = typeof props.text === "string" ? props.text : "Heading";
-  return createElement(`h${level}`, { "data-node-type": "Heading", "data-node-id": id }, text);
+  const style = props.style as React.CSSProperties | undefined;
+  return createElement(
+    `h${level}`,
+    { "data-node-type": "Heading", "data-node-id": id, style },
+    text,
+  );
 }
 
 export const HeadingComponent: ComponentDefinition = {

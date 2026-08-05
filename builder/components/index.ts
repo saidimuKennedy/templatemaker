@@ -6,6 +6,9 @@ export * from "./heading";
 export * from "./text";
 export * from "./image";
 export * from "./button";
+export * from "./grid";
+export * from "./navbar";
+export * from "./footer";
 
 import type { ComponentRegistry } from "../registry/types";
 import { PageComponent } from "./page";
@@ -16,6 +19,9 @@ import { HeadingComponent } from "./heading";
 import { TextComponent } from "./text";
 import { ImageComponent } from "./image";
 import { ButtonComponent } from "./button";
+import { GridComponent } from "./grid";
+import { NavbarComponent } from "./navbar";
+import { FooterComponent } from "./footer";
 
 export function registerBuiltInComponents(registry: ComponentRegistry): void {
   registry.register(PageComponent);
@@ -26,4 +32,7 @@ export function registerBuiltInComponents(registry: ComponentRegistry): void {
   registry.register(TextComponent);
   registry.register(ImageComponent);
   registry.register(ButtonComponent);
+  registry.register(GridComponent);
+  registry.register(NavbarComponent);
+  registry.register(FooterComponent);
 }

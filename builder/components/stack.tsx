@@ -10,6 +10,21 @@ function StackIcon() {
   );
 }
 
+const JUSTIFY_MAP: Record<string, string> = {
+  start: "flex-start",
+  center: "center",
+  end: "flex-end",
+  between: "space-between",
+  around: "space-around",
+};
+
+const ALIGN_MAP: Record<string, string> = {
+  start: "flex-start",
+  center: "center",
+  end: "flex-end",
+  stretch: "stretch",
+};
+
 function StackRenderer({
   id,
   props,
@@ -20,11 +35,21 @@ function StackRenderer({
   readonly children?: React.ReactNode;
 }) {
   const direction = props.direction === "row" ? "row" : "column";
+  const justify = typeof props.justify === "string" ? props.justify : "start";
+  const align = typeof props.align === "string" ? props.align : "stretch";
+  const style = props.style as React.CSSProperties | undefined;
   return (
     <div
       data-node-type="Stack"
       data-node-id={id}
-      style={{ display: "flex", flexDirection: direction, gap: "8px" }}
+      style={{
+        display: "flex",
+        flexDirection: direction,
+        gap: "8px",
+        justifyContent: JUSTIFY_MAP[justify] ?? JUSTIFY_MAP.start,
+        alignItems: ALIGN_MAP[align] ?? ALIGN_MAP.stretch,
+        ...style,
+      }}
     >
       {children}
     </div>
@@ -36,7 +61,7 @@ export const StackComponent: ComponentDefinition = {
   category: "Layout",
   icon: StackIcon,
   renderer: StackRenderer,
-  defaultProps: { direction: "column" },
+  defaultProps: { direction: "column", justify: "start", align: "stretch" },
   propertySchema: [
     {
       key: "direction",
@@ -47,6 +72,31 @@ export const StackComponent: ComponentDefinition = {
         { label: "Row", value: "row" },
       ],
       defaultValue: "column",
+    },
+    {
+      key: "justify",
+      label: "Justify",
+      type: "select",
+      options: [
+        { label: "Start", value: "start" },
+        { label: "Center", value: "center" },
+        { label: "End", value: "end" },
+        { label: "Space between", value: "between" },
+        { label: "Space around", value: "around" },
+      ],
+      defaultValue: "start",
+    },
+    {
+      key: "align",
+      label: "Align",
+      type: "select",
+      options: [
+        { label: "Start", value: "start" },
+        { label: "Center", value: "center" },
+        { label: "End", value: "end" },
+        { label: "Stretch", value: "stretch" },
+      ],
+      defaultValue: "stretch",
     },
   ],
   constraints: {},

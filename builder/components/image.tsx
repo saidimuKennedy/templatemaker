@@ -20,6 +20,7 @@ function ImageRenderer({
 }) {
   const src = typeof props.src === "string" ? props.src : "";
   const alt = typeof props.alt === "string" ? props.alt : "";
+  const style = props.style as React.CSSProperties | undefined;
 
   if (!src) {
     return (
@@ -34,6 +35,7 @@ function ImageRenderer({
           background: "#f1f1f1",
           color: "#888",
           fontSize: "0.75rem",
+          ...style,
         }}
       >
         No image selected
@@ -41,7 +43,15 @@ function ImageRenderer({
     );
   }
 
-  return <img data-node-type="Image" data-node-id={id} src={src} alt={alt} />;
+  return (
+    <img
+      data-node-type="Image"
+      data-node-id={id}
+      src={src}
+      alt={alt}
+      style={{ maxWidth: "100%", height: "auto", display: "block", ...style }}
+    />
+  );
 }
 
 export const ImageComponent: ComponentDefinition = {

@@ -10,14 +10,16 @@ function ContainerIcon() {
 
 function ContainerRenderer({
   id,
+  props,
   children,
 }: {
   readonly id: string;
   readonly props: Record<string, unknown>;
   readonly children?: React.ReactNode;
 }) {
+  const style = props.style as React.CSSProperties | undefined;
   return (
-    <div data-node-type="Container" data-node-id={id}>
+    <div data-node-type="Container" data-node-id={id} style={style}>
       {children}
     </div>
   );

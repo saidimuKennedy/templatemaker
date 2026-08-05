@@ -11,6 +11,7 @@ import {
 import type { InspectorField } from "@/builder/inspector/types";
 import type { Command } from "@/builder/history/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
+import { StyleInspector } from "@/components/editor/StyleInspector";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 type InspectorProps = {
@@ -149,14 +151,6 @@ export function Inspector({
   }
 
   const model = buildInspectorModel(found.node, registry);
-  if (!model) {
-    return (
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-100">
-        Unknown component type &quot;{found.node.type}&quot; — no inspector available.
-      </div>
-    );
-  }
-
   const definition = registry.get(found.node.type);
 
   const handleFieldChange = (field: InspectorField, value: unknown) => {
@@ -179,8 +173,8 @@ export function Inspector({
     onCommand(createUpdatePropsCommand(pageId, found.node, field.key, value));
   };
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto rounded-lg border border-border p-4">
+  const contentPanel = model ? (
+    <div className="space-y-4">
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Component</p>
         <p className="font-medium">{model.componentType}</p>
@@ -199,6 +193,27 @@ export function Inspector({
           </div>
         ))}
       </div>
+    </div>
+  ) : (
+    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-100">
+      Unknown component type &quot;{found.node.type}&quot; — no properties available.
+    </div>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-lg border border-border p-4">
+      <Tabs defaultValue="content" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="content">Content</TabsTrigger>
+          <TabsTrigger value="design">Design</TabsTrigger>
+        </TabsList>
+        <TabsContent value="content" className="mt-4">
+          {contentPanel}
+        </TabsContent>
+        <TabsContent value="design" className="mt-4">
+          <StyleInspector pageId={pageId} node={found.node} onCommand={onCommand} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
