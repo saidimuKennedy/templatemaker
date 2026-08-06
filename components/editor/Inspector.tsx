@@ -11,6 +11,7 @@ import {
 import type { InspectorField } from "@/builder/inspector/types";
 import type { Command } from "@/builder/history/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
+import type { Breakpoint } from "@/builder/styles/types";
 import { StyleInspector } from "@/components/editor/StyleInspector";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,7 @@ type InspectorProps = {
   readonly pageId: PageId;
   readonly selectedNodeId: NodeId | null;
   readonly registry: ComponentRegistry;
+  readonly viewport: Breakpoint;
   readonly onCommand: (command: Command) => void;
 };
 
@@ -128,6 +130,7 @@ export function Inspector({
   pageId,
   selectedNodeId,
   registry,
+  viewport,
   onCommand,
 }: InspectorProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -211,7 +214,7 @@ export function Inspector({
           {contentPanel}
         </TabsContent>
         <TabsContent value="design" className="mt-4">
-          <StyleInspector pageId={pageId} node={found.node} onCommand={onCommand} />
+          <StyleInspector pageId={pageId} node={found.node} breakpoint={viewport} onCommand={onCommand} />
         </TabsContent>
       </Tabs>
     </div>

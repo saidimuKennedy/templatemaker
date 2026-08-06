@@ -9,6 +9,7 @@ import {
 import { Canvas, initialCanvasState } from "@/components/editor/Canvas";
 import { Inspector } from "@/components/editor/Inspector";
 import { Toolbox } from "@/components/editor/Toolbox";
+import { ViewportToggle } from "@/components/editor/ViewportToggle";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
@@ -18,6 +19,7 @@ import type { BuilderDocument } from "@/builder/document/types";
 import { createEditorSession } from "@/builder/history/session";
 import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
+import type { Breakpoint } from "@/builder/styles/types";
 import { createPortfolioRegistry } from "@/lib/builder";
 
 type EditorClientProps = {
@@ -32,6 +34,7 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
   const skipAutosaveRef = useRef(true);
   const [documentVersion, setDocumentVersion] = useState(0);
   const [canvasState, setCanvasState] = useState(initialCanvasState);
+  const [viewport, setViewport] = useState<Breakpoint>("base");
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -187,6 +190,7 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
+      <ViewportToggle value={viewport} onChange={setViewport} />
       <Button type="button" variant="outline" disabled={pending} onClick={() => handleSave()}>
         Save
       </Button>
@@ -209,6 +213,7 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
       pageId={pageId}
       selectedNodeId={selectedNodeId}
       registry={registry}
+      viewport={viewport}
       onCommand={handleCommand}
     />
   );
@@ -222,6 +227,7 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
       pageId={pageId}
       documentVersion={documentVersion}
       canvasState={canvasState}
+      viewport={viewport}
       onCanvasStateChange={setCanvasState}
       onDocumentChange={bumpDocumentVersion}
     />

@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import { Fragment, type ReactElement } from "react";
 import type { Prisma } from "@prisma/client";
 import { findNodeAndParent } from "@/builder/document/tree";
 import { deserializeDocument } from "@/builder/document/serialize";
@@ -10,6 +10,7 @@ import type { BuilderDocument, BuilderNode, ValidationResult } from "@/builder/d
 import type { ComponentRegistry } from "@/builder/registry/types";
 import { createRenderer } from "@/builder/renderer/renderer";
 import { createStyledRenderer } from "@/builder/styles/apply";
+import { buildResponsiveStylesheet } from "@/builder/styles/responsive";
 
 export function parseBuilderContent(raw: Prisma.JsonValue): BuilderDocument | undefined {
   try {
@@ -75,11 +76,23 @@ export function renderPublished(
   document: BuilderDocument,
   registry: ComponentRegistry,
 ): ReactElement {
+  // Base styles are resolved inline (mobile-first default); sm/md/lg
+  // overrides ship as real @media rules so a visitor's own browser
+  // adapts to their actual viewport width, not a single server-picked
+  // breakpoint.
   const renderer = createStyledRenderer(createRenderer(), "base");
-  return renderer.renderDocument(document, {
+  const tree = renderer.renderDocument(document, {
     registry,
     target: "published-webview",
   });
+  const stylesheet = buildResponsiveStylesheet(document);
+
+  return (
+    <Fragment>
+      {stylesheet ? <style dangerouslySetInnerHTML={{ __html: stylesheet }} /> : null}
+      {tree}
+    </Fragment>
+  );
 }
 
 export function findNodeParentId(

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { STYLE_FIELDS, TEXT_ALIGN_OPTIONS, type StyleField } from "@/builder/styles/fields";
 import { defaultTokens } from "@/builder/styles/tokens";
-import type { NodeStyleRules } from "@/builder/styles/types";
+import type { Breakpoint, NodeStyleRules } from "@/builder/styles/types";
 import type { BuilderNode, PageId } from "@/builder/document/types";
 import { createUpdateStylesCommand } from "@/builder/inspector/edit";
 import type { Command } from "@/builder/history/types";
@@ -54,9 +54,19 @@ function tokenOptionsFor(field: StyleField): readonly { label: string; value: st
   return [];
 }
 
-function getBaseDeclaration(node: BuilderNode): Record<string, string | number> {
+const BREAKPOINT_LABELS: Record<Breakpoint, string> = {
+  base: "Mobile",
+  sm: "Small",
+  md: "Tablet",
+  lg: "Desktop",
+};
+
+function getDeclarationForBreakpoint(
+  node: BuilderNode,
+  breakpoint: Breakpoint,
+): Record<string, string | number> {
   const rules = node.styles as NodeStyleRules;
-  return { ...(rules.base ?? {}) };
+  return { ...(rules[breakpoint] ?? {}) };
 }
 
 function StyleFieldControl({
@@ -134,24 +144,30 @@ function StyleFieldControl({
 type StyleInspectorProps = {
   readonly pageId: PageId;
   readonly node: BuilderNode;
+  readonly breakpoint: Breakpoint;
   readonly onCommand: (command: Command) => void;
 };
 
-export function StyleInspector({ pageId, node, onCommand }: StyleInspectorProps) {
-  const base = getBaseDeclaration(node);
+export function StyleInspector({ pageId, node, breakpoint, onCommand }: StyleInspectorProps) {
+  const declaration = getDeclarationForBreakpoint(node, breakpoint);
 
   const handleFieldChange = (field: StyleField, value: string) => {
-    const nextBase = { ...base, [field.key]: value };
-    onCommand(createUpdateStylesCommand(pageId, node, "base", nextBase));
+    const nextDeclaration = { ...declaration, [field.key]: value };
+    onCommand(createUpdateStylesCommand(pageId, node, breakpoint, nextDeclaration));
   };
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Editing styles for <span className="font-medium">{BREAKPOINT_LABELS[breakpoint]}</span>.
+        Fields are blank when this breakpoint doesn&apos;t set its own override — it may still
+        inherit a value from a smaller breakpoint when rendered.
+      </p>
       {STYLE_FIELDS.map((field) => (
         <StyleFieldControl
           key={field.key}
           field={field}
-          value={base[field.key]}
+          value={declaration[field.key]}
           onChange={(value) => handleFieldChange(field, value)}
         />
       ))}

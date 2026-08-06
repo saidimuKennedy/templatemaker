@@ -21,7 +21,15 @@ import type { Command } from "@/builder/history/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import { createRenderer } from "@/builder/renderer/renderer";
 import { createStyledRenderer } from "@/builder/styles/apply";
+import type { Breakpoint } from "@/builder/styles/types";
 import { Button } from "@/components/ui/button";
+
+const VIEWPORT_MAX_WIDTH: Record<Breakpoint, string> = {
+  base: "390px",
+  sm: "640px",
+  md: "768px",
+  lg: "1024px",
+};
 
 type CanvasProps = {
   readonly session: EditorSession;
@@ -29,6 +37,7 @@ type CanvasProps = {
   readonly pageId: PageId;
   readonly documentVersion: number;
   readonly canvasState: CanvasState;
+  readonly viewport: Breakpoint;
   readonly onCanvasStateChange: (state: CanvasState) => void;
   readonly onDocumentChange: () => void;
 };
@@ -39,6 +48,7 @@ export function Canvas({
   pageId,
   documentVersion,
   canvasState,
+  viewport,
   onCanvasStateChange,
   onDocumentChange,
 }: CanvasProps) {
@@ -48,8 +58,8 @@ export function Canvas({
   const document = session.getDocument();
 
   const styledRenderer = useMemo(
-    () => createStyledRenderer(createRenderer(), "base"),
-    [],
+    () => createStyledRenderer(createRenderer(), viewport),
+    [viewport],
   );
 
   const renderedPage = useMemo(() => {
@@ -273,7 +283,9 @@ export function Canvas({
         onClick={handleCanvasClick}
         onKeyDown={handleKeyDown}
       >
-        <div className="mx-auto max-w-[390px]">{renderedPage}</div>
+        <div className="mx-auto transition-[max-width]" style={{ maxWidth: VIEWPORT_MAX_WIDTH[viewport] }}>
+          {renderedPage}
+        </div>
         {overlayStyle ? <div aria-hidden="true" style={overlayStyle} /> : null}
       </div>
     </div>

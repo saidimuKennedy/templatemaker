@@ -1,4 +1,6 @@
+import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
+import { EmptyPlaceholder } from "./empty-placeholder";
 
 function FooterIcon() {
   return (
@@ -22,7 +24,7 @@ function FooterRenderer({
 
   return (
     <footer data-node-type="Footer" data-node-id={id} style={style}>
-      {children}
+      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Footer" />}
     </footer>
   );
 }

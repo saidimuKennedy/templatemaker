@@ -1,4 +1,6 @@
+import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
+import { EmptyPlaceholder } from "./empty-placeholder";
 
 const PADDING_MAP: Record<string, string> = {
   sm: "8px",
@@ -31,7 +33,7 @@ function SectionRenderer({
       data-node-id={id}
       style={{ padding: PADDING_MAP[padding] ?? PADDING_MAP.md, ...style }}
     >
-      {children}
+      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Section" />}
     </div>
   );
 }

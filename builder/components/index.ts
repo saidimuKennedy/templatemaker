@@ -1,3 +1,4 @@
+export * from "./empty-placeholder";
 export * from "./page";
 export * from "./section";
 export * from "./container";

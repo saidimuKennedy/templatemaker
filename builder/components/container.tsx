@@ -1,4 +1,6 @@
+import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
+import { EmptyPlaceholder } from "./empty-placeholder";
 
 function ContainerIcon() {
   return (
@@ -20,7 +22,7 @@ function ContainerRenderer({
   const style = props.style as React.CSSProperties | undefined;
   return (
     <div data-node-type="Container" data-node-id={id} style={style}>
-      {children}
+      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Container" />}
     </div>
   );
 }

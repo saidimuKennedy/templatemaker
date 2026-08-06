@@ -1,4 +1,6 @@
+import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
+import { EmptyPlaceholder } from "./empty-placeholder";
 
 function NavbarIcon() {
   return (
@@ -32,7 +34,7 @@ function NavbarRenderer({
         ...style,
       }}
     >
-      {children}
+      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Navbar" />}
     </nav>
   );
 }
