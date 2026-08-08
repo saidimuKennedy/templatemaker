@@ -156,6 +156,39 @@ Sequence 18 → 19 → 20 rather than in parallel: 18 is the safety net for
 the other two, and 20 changes the node contract and `schemaVersion`,
 which 19's prompt construction reads.
 
+### Editor shell (Plan 21) — inserted ahead of v2
+
+| # | Plan | Directory | Depends on | Notes |
+|---|------|-----------|------------|-------|
+| 21 | [Webflow Editor Alignment](./21-webflow-editor-alignment.md) | `scripts/seed-dogfood-portfolio.tsx`, `components/editor/{Navigator,StyleInspector,EditorClient,Toolbox}.tsx`, `builder/styles/fields.ts`, `builder/document/types.ts` | v1 (13–16) | **Landed.** Navigator panel, grouped Style panel, Toolbox popover |
+
+Plan 21 was inserted after v1 and before the v2 sequence: the editor's
+shell was `[Toolbox | Canvas | Inspector]` with no way to see or select
+the document tree except by clicking canvas boxes, which does not scale
+past a shallow page. It brings the editor to Webflow's
+`[Navigator | Canvas | Style]` shape.
+
+Three decisions from Plan 21 bind later work — read its "Confirmed
+decisions" section before touching styles or the editor shell:
+
+- **Styles stay inline CSS + generated `@media` rules, never Tailwind
+  classes.** Tailwind emits CSS by scanning source files at build time,
+  so class names assembled at runtime from database JSON are never
+  emitted and published pages would render unstyled. Tailwind is only
+  ever appropriate as a code-*export* target.
+- **`BuilderNode` gained an optional `name?: string`** — a
+  presentational Navigator label, never rendered into published output.
+  Optional, so pre-existing documents stay valid and fall back to
+  `type`.
+- **Spacing style fields are longhand-only** (`paddingTop`, …). A
+  declaration is a flat insertion-ordered bag, so a `padding` shorthand
+  written after a longhand silently clobbers it. `expandSpacingShorthand()`
+  in `builder/styles/fields.ts` migrates legacy shorthands on edit.
+
+Known follow-ups not yet built: renaming a node from the Navigator
+(needs a `RenameNode` command — `name` is neither a prop nor a style, so
+no existing command can set it), and Navigator drag-to-reorder.
+
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals
 (both plans pin the exact same contract — see each doc's "Contract other

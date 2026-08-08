@@ -12,9 +12,16 @@ import type {
   CreateNodePayload,
   DeleteNodePayload,
   MoveNodePayload,
+  RenameNodePayload,
   UpdatePropsPayload,
   UpdateStylesPayload,
 } from "./types";
+
+function normalizeNodeName(name: string | undefined): string | undefined {
+  if (name === undefined) return undefined;
+  const trimmed = name.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
 
 function getPage(document: BuilderDocument, pageId: PageId): BuilderPage {
   const page = document.pages.find((p) => p.id === pageId);
@@ -93,6 +100,19 @@ function applyUpdateStyles(document: BuilderDocument, payload: UpdateStylesPaylo
   return replacePage(document, payload.pageId, newRoot);
 }
 
+function applyRenameNode(document: BuilderDocument, payload: RenameNodePayload): BuilderDocument {
+  const page = getPage(document, payload.pageId);
+  const normalizedName = normalizeNodeName(payload.name);
+  const newRoot = updateNode(page.root, payload.nodeId, (node) => ({
+    ...node,
+    name: normalizedName,
+  }));
+  if (!newRoot) {
+    throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
+  }
+  return replacePage(document, payload.pageId, newRoot);
+}
+
 function applyCommand(document: BuilderDocument, command: Command): BuilderDocument {
   switch (command.type) {
     case "CreateNode":
@@ -105,6 +125,8 @@ function applyCommand(document: BuilderDocument, command: Command): BuilderDocum
       return applyUpdateProps(document, command.payload);
     case "UpdateStyles":
       return applyUpdateStyles(document, command.payload);
+    case "RenameNode":
+      return applyRenameNode(document, command.payload);
   }
 }
 
@@ -170,6 +192,21 @@ function invertCommand(document: BuilderDocument, command: Command): Command {
       return {
         type: "UpdateStyles",
         payload: { pageId: command.payload.pageId, nodeId: command.payload.nodeId, styles: previous },
+      };
+    }
+    case "RenameNode": {
+      const page = getPage(document, command.payload.pageId);
+      const found = findNodeAndParent(page.root, command.payload.nodeId);
+      if (!found) {
+        throw new Error(`Cannot invert RenameNode: node "${command.payload.nodeId}" not found.`);
+      }
+      return {
+        type: "RenameNode",
+        payload: {
+          pageId: command.payload.pageId,
+          nodeId: command.payload.nodeId,
+          name: found.node.name,
+        },
       };
     }
   }

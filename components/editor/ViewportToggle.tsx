@@ -2,10 +2,11 @@
 
 import type { Breakpoint } from "@/builder/styles/types";
 import { Button } from "@/components/ui/button";
+import { Monitor, Smartphone } from "lucide-react";
 
-const VIEWPORTS: readonly { label: string; value: Breakpoint }[] = [
-  { label: "Mobile", value: "base" },
-  { label: "Desktop", value: "lg" },
+const VIEWPORTS: readonly { icon: React.ReactNode; value: Breakpoint; label: string }[] = [
+  { icon: <Smartphone className="h-4 w-4" />, value: "base", label: "Mobile" },
+  { icon: <Monitor className="h-4 w-4" />, value: "lg", label: "Desktop" },
 ];
 
 type ViewportToggleProps = {
@@ -22,9 +23,11 @@ export function ViewportToggle({ value, onChange }: ViewportToggleProps) {
           type="button"
           size="sm"
           variant={value === viewport.value ? "default" : "ghost"}
+          className="h-8 w-8 p-0"
+          aria-label={viewport.label}
           onClick={() => onChange(viewport.value)}
         >
-          {viewport.label}
+          {viewport.icon}
         </Button>
       ))}
     </div>

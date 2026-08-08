@@ -28,12 +28,6 @@ export default async function EditorPage({ params }: EditorPageProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit portfolio</h1>
-        <p className="text-sm text-muted-foreground">
-          Template: <span className="capitalize">{portfolio.templateId}</span>
-        </p>
-      </div>
       <EditorClient
         portfolioId={portfolio.id}
         initialDocument={initialDocument}

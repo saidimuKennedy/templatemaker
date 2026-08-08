@@ -32,3 +32,23 @@ export function createUpdateStylesCommand(
     },
   };
 }
+
+function normalizeNodeName(name: string): string | undefined {
+  const trimmed = name.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+export function createRenameNodeCommand(
+  pageId: PageId,
+  node: BuilderNode,
+  name: string,
+): Command {
+  return {
+    type: "RenameNode",
+    payload: {
+      pageId,
+      nodeId: node.id,
+      name: normalizeNodeName(name),
+    },
+  };
+}

@@ -27,7 +27,17 @@ import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
 import type { Breakpoint } from "@/builder/styles/types";
 import { createPortfolioRegistry } from "@/lib/builder";
-import { Plus } from "lucide-react";
+import {
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  Monitor,
+  Plus,
+  Save,
+  Smartphone,
+  Upload,
+} from "lucide-react";
 
 type EditorClientProps = {
   portfolioId: string;
@@ -230,41 +240,87 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   };
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2">
-      <DropdownMenu open={isToolboxOpen} onOpenChange={setIsToolboxOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            <span>Add element</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72 p-2 max-h-[32rem] overflow-y-auto">
-          <Toolbox registry={registry} onAdd={handleAddComponent} />
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <div className="mx-4 flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
+        <DropdownMenu open={isToolboxOpen} onOpenChange={setIsToolboxOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 w-8 p-0"
+              aria-label="Add element"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72 p-2 max-h-[32rem] overflow-y-auto">
+            <Toolbox registry={registry} onAdd={handleAddComponent} />
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
-      <ViewportToggle value={viewport} onChange={setViewport} />
-      <Button type="button" variant="outline" disabled={pending} onClick={() => handleSave()}>
-        Save
-      </Button>
-      {status === "PUBLISHED" ? (
-        <Button type="button" variant="outline" disabled={pending} onClick={handleUnpublish}>
-          Unpublish
+        <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <ViewportToggle value={viewport} onChange={setViewport} />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0"
+          disabled={pending}
+          onClick={() => handleSave()}
+          aria-label="Save"
+        >
+          <Save className="h-4 w-4" />
         </Button>
-      ) : (
-        <Button type="button" disabled={pending} onClick={handlePublish}>
-          Publish
+        {status === "PUBLISHED" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={pending}
+            onClick={handleUnpublish}
+            aria-label="Unpublish"
+          >
+            <EyeOff className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={pending}
+            onClick={handlePublish}
+            aria-label="Publish"
+          >
+            <Upload className="h-4 w-4" />
+          </Button>
+        )}
+        {status === "PUBLISHED" && slug ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={handleCopyEmbedCode}
+            aria-label="Copy embed code"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={handleExportJson}
+          aria-label="Export JSON"
+        >
+          <Download className="h-4 w-4" />
         </Button>
-      )}
-      {status === "PUBLISHED" && slug ? (
-        <Button type="button" variant="outline" onClick={handleCopyEmbedCode}>
-          Copy embed code
-        </Button>
-      ) : null}
-      <Button type="button" variant="outline" onClick={handleExportJson}>
-        Export JSON
-      </Button>
+      </div>
     </div>
   );
 
@@ -286,6 +342,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       pageId={pageId}
       canvasState={canvasState}
       onCanvasStateChange={setCanvasState}
+      onCommand={handleCommand}
     />
   );
 
@@ -305,9 +362,9 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   );
 
   return (
-    <div className="space-y-4">
-      {toolbar}
-      <div className="hidden h-[calc(100vh-12rem)] md:grid md:grid-cols-[280px_minmax(0,1fr)_300px] md:gap-4">
+    <div className="flex h-screen max-h-screen flex-col overflow-hidden">
+      <div className="shrink-0 border-b border-border px-4 py-3">{toolbar}</div>
+      <div className="hidden flex-1 min-h-0 md:grid md:grid-cols-[280px_minmax(0,1fr)_300px]">
         {navigatorPanel}
         {canvas}
         {inspector}

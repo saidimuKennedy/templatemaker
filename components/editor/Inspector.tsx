@@ -137,8 +137,15 @@ export function Inspector({
 
   if (!selectedNodeId) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-        Select a node to edit its properties.
+      <div className="flex flex-col h-full min-h-0 border-l border-border bg-card">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Properties
+          </h2>
+        </div>
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+          Select a node to edit its properties.
+        </div>
       </div>
     );
   }
@@ -204,16 +211,23 @@ export function Inspector({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-lg border border-border p-4">
-      <Tabs defaultValue="content" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="design">Design</TabsTrigger>
-        </TabsList>
-        <TabsContent value="content" className="mt-4">
+    <div className="flex flex-col h-full min-h-0 border-l border-border bg-card">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Properties
+        </h2>
+      </div>
+      <Tabs defaultValue="content" className="flex flex-col flex-1 min-h-0">
+        <div className="px-3 pt-2 border-b border-border">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="design">Design</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="content" className="mt-0 flex-1 overflow-y-auto p-4">
           {contentPanel}
         </TabsContent>
-        <TabsContent value="design" className="mt-4">
+        <TabsContent value="design" className="mt-0 flex-1 min-h-0 overflow-hidden">
           <StyleInspector pageId={pageId} node={found.node} breakpoint={viewport} onCommand={onCommand} />
         </TabsContent>
       </Tabs>

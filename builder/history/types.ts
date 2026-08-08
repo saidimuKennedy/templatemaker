@@ -51,6 +51,13 @@ export interface UpdateStylesPayload {
   readonly styles: NodeStyles;
 }
 
+export interface RenameNodePayload {
+  readonly pageId: PageId;
+  readonly nodeId: NodeId;
+  /** Omit/undefined clears the name so the Navigator falls back to node.type. */
+  readonly name?: string;
+}
+
 /**
  * The closed set of mutations the engine understands. New mutation
  * kinds are added here, not by having callers bypass Command and edit
@@ -61,7 +68,8 @@ export type Command =
   | { readonly type: "MoveNode"; readonly payload: MoveNodePayload }
   | { readonly type: "DeleteNode"; readonly payload: DeleteNodePayload }
   | { readonly type: "UpdateProps"; readonly payload: UpdatePropsPayload }
-  | { readonly type: "UpdateStyles"; readonly payload: UpdateStylesPayload };
+  | { readonly type: "UpdateStyles"; readonly payload: UpdateStylesPayload }
+  | { readonly type: "RenameNode"; readonly payload: RenameNodePayload };
 
 export type CommandType = Command["type"];
 

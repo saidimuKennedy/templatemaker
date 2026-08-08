@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { BuilderNode, BuilderProject, PageId } from "@/builder/document/types";
 import { select, isSelected } from "@/builder/canvas/selection";
 import type { CanvasState } from "@/builder/canvas/types";
+import { createRenameNodeCommand } from "@/builder/inspector/edit";
+import type { Command } from "@/builder/history/types";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,15 +14,21 @@ type NavigatorProps = {
   readonly pageId: PageId;
   readonly canvasState: CanvasState;
   readonly onCanvasStateChange: (state: CanvasState) => void;
+  readonly onCommand: (command: Command) => void;
 };
 
 type NodeRowProps = {
   readonly node: BuilderNode;
   readonly depth: number;
+  readonly pageId: PageId;
   readonly canvasState: CanvasState;
   readonly onSelectNode: (nodeId: string) => void;
+  readonly onCommand: (command: Command) => void;
   readonly collapsedMap: Record<string, boolean>;
   readonly toggleCollapse: (id: string) => void;
+  readonly editingNodeId: string | null;
+  readonly onStartEdit: (nodeId: string) => void;
+  readonly onEndEdit: () => void;
 };
 
 function findAncestorIds(root: BuilderNode, targetId: string, path: string[] = []): string[] | undefined {
@@ -37,13 +45,22 @@ function findAncestorIds(root: BuilderNode, targetId: string, path: string[] = [
 function NodeRow({
   node,
   depth,
+  pageId,
   canvasState,
   onSelectNode,
+  onCommand,
   collapsedMap,
   toggleCollapse,
+  editingNodeId,
+  onStartEdit,
+  onEndEdit,
 }: NodeRowProps) {
   const selected = isSelected(canvasState, node.id);
   const hasChildren = node.children.length > 0;
+  const isEditing = editingNodeId === node.id;
+  const [draftName, setDraftName] = useState(node.name ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const skipBlurCommitRef = useRef(false);
   // collapsedMap is the single source of truth for expansion. Selecting a
   // node writes its ancestors open in collapsedMap (see Navigator's
   // effect) rather than being overridden here at render time — an
@@ -52,9 +69,29 @@ function NodeRow({
   // working inside.
   const isCollapsed = collapsedMap[node.id] ?? false;
 
+  useEffect(() => {
+    if (!isEditing) return;
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    });
+  }, [isEditing]);
+
   const handleSelect = (e: React.MouseEvent) => {
+    if (isEditing) return;
     e.stopPropagation();
     onSelectNode(node.id);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDraftName(node.name ?? "");
+    skipBlurCommitRef.current = false;
+    onStartEdit(node.id);
   };
 
   const handleToggle = (e: React.MouseEvent) => {
@@ -62,20 +99,54 @@ function NodeRow({
     toggleCollapse(node.id);
   };
 
+  const commitRename = () => {
+    // Committing ends edit mode, which unmounts the input while it still
+    // has focus — that can fire onBlur, which would call this a second
+    // time. On that second pass `node` may not have re-rendered with the
+    // new name yet, so the no-op guard below wouldn't catch it and an
+    // identical RenameNode would land on the undo stack, making the
+    // first Ctrl+Z look like it did nothing. Disarm blur the same way
+    // cancelRename does.
+    skipBlurCommitRef.current = true;
+
+    const trimmed = draftName.trim();
+    const normalizedName = trimmed === "" ? undefined : trimmed;
+    const currentName = node.name;
+
+    if (normalizedName === currentName) {
+      onEndEdit();
+      return;
+    }
+
+    onCommand(createRenameNodeCommand(pageId, node, draftName));
+    onEndEdit();
+  };
+
+  const cancelRename = () => {
+    skipBlurCommitRef.current = true;
+    setDraftName(node.name ?? "");
+    onEndEdit();
+  };
+
   return (
     <div className="flex flex-col">
       <div
         role="treeitem"
         aria-selected={selected}
-        tabIndex={0}
+        tabIndex={isEditing ? -1 : 0}
         data-navigator-node-id={node.id}
         onClick={handleSelect}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.stopPropagation();
-            onSelectNode(node.id);
-          }
-        }}
+        onDoubleClick={handleDoubleClick}
+        onKeyDown={
+          isEditing
+            ? undefined
+            : (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  onSelectNode(node.id);
+                }
+              }
+        }
         // 10px per level rather than 12: the fixture reaches depth 7, and
         // at 12px the indent alone ate enough of a 220px column to
         // truncate the names this panel exists to show.
@@ -107,27 +178,60 @@ function NodeRow({
           <span className="w-4 shrink-0" />
         )}
 
-        {/*
-          The name truncates; the type never does. A clipped type
-          ("Headi…", "St…") costs the same horizontal space as the full
-          word and tells the reader nothing, so it gets shrink-0 and the
-          name absorbs the pressure instead. Full text is on the row's
-          title attribute either way.
-        */}
-        {node.name ? (
-          <>
-            <span className="truncate min-w-0">{node.name}</span>
-            <span
-              className={cn(
-                "shrink-0 font-normal text-[10px]",
-                selected ? "text-primary-foreground/70" : "text-muted-foreground",
-              )}
-            >
-              {node.type}
-            </span>
-          </>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitRename();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                cancelRename();
+              }
+            }}
+            onBlur={() => {
+              if (skipBlurCommitRef.current) {
+                skipBlurCommitRef.current = false;
+                return;
+              }
+              commitRename();
+            }}
+            className={cn(
+              "flex-1 min-w-0 h-6 px-1 rounded text-xs font-medium bg-background text-foreground border border-border outline-none focus:ring-1 focus:ring-ring",
+            )}
+          />
         ) : (
-          <span className="truncate min-w-0">{node.type}</span>
+          <>
+            {/*
+              The name truncates; the type never does. A clipped type
+              ("Headi…", "St…") costs the same horizontal space as the full
+              word and tells the reader nothing, so it gets shrink-0 and the
+              name absorbs the pressure instead. Full text is on the row's
+              title attribute either way.
+            */}
+            {node.name ? (
+              <>
+                <span className="truncate min-w-0">{node.name}</span>
+                <span
+                  className={cn(
+                    "shrink-0 font-normal text-[10px]",
+                    selected ? "text-primary-foreground/70" : "text-muted-foreground",
+                  )}
+                >
+                  {node.type}
+                </span>
+              </>
+            ) : (
+              <span className="truncate min-w-0">{node.type}</span>
+            )}
+          </>
         )}
       </div>
 
@@ -138,10 +242,15 @@ function NodeRow({
               key={child.id}
               node={child}
               depth={depth + 1}
+              pageId={pageId}
               canvasState={canvasState}
               onSelectNode={onSelectNode}
+              onCommand={onCommand}
               collapsedMap={collapsedMap}
               toggleCollapse={toggleCollapse}
+              editingNodeId={editingNodeId}
+              onStartEdit={onStartEdit}
+              onEndEdit={onEndEdit}
             />
           ))}
         </div>
@@ -155,9 +264,11 @@ export function Navigator({
   pageId,
   canvasState,
   onCanvasStateChange,
+  onCommand,
 }: NavigatorProps) {
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
   const [expandedForSelection, setExpandedForSelection] = useState<string | null>(null);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const isInternalSelectionRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -273,10 +384,15 @@ export function Navigator({
         <NodeRow
           node={page.root}
           depth={0}
+          pageId={pageId}
           canvasState={canvasState}
           onSelectNode={handleSelectNode}
+          onCommand={onCommand}
           collapsedMap={collapsedMap}
           toggleCollapse={toggleCollapse}
+          editingNodeId={editingNodeId}
+          onStartEdit={setEditingNodeId}
+          onEndEdit={() => setEditingNodeId(null)}
         />
       </div>
     </div>

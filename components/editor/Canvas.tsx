@@ -26,6 +26,14 @@ import { createStyledRenderer } from "@/builder/styles/apply";
 import type { Breakpoint } from "@/builder/styles/types";
 import { Button } from "@/components/ui/button";
 
+/**
+ * One blue for every canvas affordance — selection outline, its name
+ * badge, and the drag/drop indicator. Kept as a literal rather than a
+ * theme token because it must read as "editor chrome" in both light and
+ * dark themes, distinct from whatever the user styles their own nodes.
+ */
+const SELECTION_COLOR = "#2563eb";
+
 const VIEWPORT_MAX_WIDTH: Record<Breakpoint, string> = {
   base: "390px",
   sm: "640px",
@@ -139,16 +147,38 @@ export function Canvas({
         width: rect.width,
         height: rect.height,
         pointerEvents: "none",
-        outline: "2px solid var(--foreground)",
+        outline: `2px solid ${SELECTION_COLOR}`,
         outlineOffset: "2px",
         borderRadius: "2px",
       });
     };
 
     updateOverlay();
+
+    // A window resize listener is not enough: the canvas column is sized
+    // by the editor's CSS grid, so collapsing a sidebar or toggling the
+    // Mobile/Desktop viewport resizes THIS container while the window
+    // stays exactly the same size. No resize event fires, the overlay
+    // keeps its stale coordinates, and the selection box visibly detaches
+    // from the node it belongs to. Observe the box we actually measure
+    // against instead. The viewport toggle also animates max-width, so
+    // this fires throughout the transition and the outline tracks it.
+    const observer = new ResizeObserver(updateOverlay);
+    observer.observe(containerRef.current!);
+
+    const element = containerRef.current?.querySelector(
+      `[data-node-id="${selectedNodeId}"]`,
+    );
+    if (element) {
+      observer.observe(element);
+    }
+
     window.addEventListener("resize", updateOverlay);
-    return () => window.removeEventListener("resize", updateOverlay);
-  }, [selectedNodeId, documentVersion]);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOverlay);
+    };
+  }, [selectedNodeId, documentVersion, viewport]);
 
   // Every rendered node is a candidate drag source except the page root
   // (moving a page's own root is rejected by applyMoveNode anyway). Stamped
@@ -196,7 +226,7 @@ export function Canvas({
         width: rect.width,
         height: rect.height,
         pointerEvents: "none",
-        outline: "2px solid #2563eb",
+        outline: `2px solid ${SELECTION_COLOR}`,
         outlineOffset: "-2px",
         borderRadius: "2px",
         zIndex: 10,
@@ -212,7 +242,7 @@ export function Canvas({
       width: rect.width,
       height: "2px",
       pointerEvents: "none",
-      backgroundColor: "#2563eb",
+      backgroundColor: SELECTION_COLOR,
       zIndex: 10,
     });
   }, [canvasState.dropTarget, documentVersion]);
@@ -387,9 +417,9 @@ export function Canvas({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col">
       {selectedNodeId ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3 py-2">
           <span className="text-xs text-muted-foreground">Selected node</span>
           <Button
             type="button"
@@ -444,7 +474,7 @@ export function Canvas({
         tabIndex={0}
         role="application"
         aria-label="Portfolio canvas"
-        className="builder-canvas-root relative min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-background p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+        className="builder-canvas-root relative min-h-0 flex-1 overflow-auto bg-muted/40 p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
         onClick={handleCanvasClick}
         onKeyDown={handleKeyDown}
         onDragStart={handleDragStart}
@@ -452,10 +482,45 @@ export function Canvas({
         onDrop={handleDrop}
         onDragEnd={handleDragEnd}
       >
-        <div className="mx-auto transition-[max-width]" style={{ maxWidth: VIEWPORT_MAX_WIDTH[viewport] }}>
+        <div
+          className="mx-auto min-h-full bg-background shadow-sm ring-1 ring-border/50 transition-[max-width]"
+          style={{ maxWidth: VIEWPORT_MAX_WIDTH[viewport] }}
+        >
           {renderedPage}
         </div>
-        {overlayStyle ? <div aria-hidden="true" style={overlayStyle} /> : null}
+        {/*
+          The selection outline carries its own name badge, the way
+          Webflow tags a selected element. Without it the canvas tells you
+          *that* something is selected but never *what* — and with nested
+          Containers/Stacks that all render as plain boxes, the outline
+          alone is genuinely ambiguous. The badge sits above the box and
+          falls back to the component type when the node is unnamed.
+        */}
+        {overlayStyle ? (
+          <div aria-hidden="true" style={overlayStyle}>
+            {selectedFound ? (
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: "100%",
+                  left: "-2px",
+                  marginBottom: "3px",
+                  padding: "1px 6px",
+                  borderRadius: "3px 3px 0 0",
+                  backgroundColor: SELECTION_COLOR,
+                  color: "#ffffff",
+                  fontSize: "10px",
+                  lineHeight: "16px",
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                }}
+              >
+                {selectedFound.node.name ?? selectedFound.node.type}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {dropOverlayStyle ? <div aria-hidden="true" style={dropOverlayStyle} /> : null}
       </div>
     </div>
