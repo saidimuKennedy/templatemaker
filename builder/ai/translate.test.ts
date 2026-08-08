@@ -78,6 +78,36 @@ describe("translateOperations", () => {
     });
   });
 
+  it("hoists legacy Grid layout props into styles on create", () => {
+    const registry = createPortfolioRegistry();
+    const document = createDefaultDocument("executive", "translate-grid-layout");
+    const page = document.pages[0]!;
+
+    const commands = translateOperations(
+      [
+        {
+          op: "create",
+          id: "grid-node",
+          pageId: page.id,
+          parentId: page.root.id,
+          componentType: "Grid",
+          props: { columns: 3, gap: "md" },
+        },
+      ],
+      document,
+      registry,
+    );
+
+    const node = commands[0]?.type === "CreateNode" ? commands[0].payload.node : undefined;
+    expect(node?.props).toEqual({});
+    const base = node?.styles.base as Record<string, string | number> | undefined;
+    expect(base).toMatchObject({
+      display: "grid",
+      gap: "16px",
+    });
+    expect(String(base?.gridTemplateColumns)).toContain("auto-fit");
+  });
+
   it("rejects unknown component types", () => {
     const registry = createPortfolioRegistry();
     const document = createDefaultDocument("executive", "translate-unknown");

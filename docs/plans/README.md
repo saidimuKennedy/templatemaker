@@ -286,10 +286,10 @@ declarations, because the document has no shared-style concept and
 `defaultTokens` is a global read-only constant the model copies values out
 of rather than references. Stage 1 (style digest fed back into the prompt,
 plus off-palette drift measurement) has landed. Stage 2 surfaces effective
-values in the Design panel, which today shows "Default" next to a node
-that is visibly a grid. Stages 3 and 4 — collapsing the props-vs-styles
-duplication for layout intent, then shared named styles — change the
-document model and **each require an ADR before implementation**.
+values in the Design panel (implemented). Stage 3 collapsed the
+props-vs-styles duplication via ADR-010 (styles win). Stage 4 shared named
+styles has a proposed ADR-011 with estimate — **not started** pending owner
+approval.
 
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals

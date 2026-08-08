@@ -50,4 +50,15 @@ describe("normalizeNodeStyles", () => {
       true,
     );
   });
+
+  it("warns on off-palette colours without rewriting them", () => {
+    const paletteColor = "#0f172a";
+    const { styles, warnings } = normalizeNodeStyles({
+      base: { color: paletteColor, backgroundColor: "#deadbeef" },
+    });
+
+    expect(styles.base?.color).toBe(paletteColor);
+    expect(styles.base?.backgroundColor).toBe("#deadbeef");
+    expect(warnings.some((warning) => warning.type === "off-palette-color")).toBe(true);
+  });
 });

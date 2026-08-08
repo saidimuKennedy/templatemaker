@@ -291,7 +291,13 @@ export function Inspector({
           {contentPanel}
         </TabsContent>
         <TabsContent value="design" className="mt-0 flex-1 min-h-0 overflow-hidden">
-          <StyleInspector pageId={pageId} node={found.node} breakpoint={viewport} onCommand={onCommand} />
+          <StyleInspector
+            pageId={pageId}
+            node={found.node}
+            breakpoint={viewport}
+            registry={registry}
+            onCommand={onCommand}
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -3,8 +3,10 @@ import { registerBuiltInComponents } from "@/builder/components";
 import { STYLE_GROUPS } from "@/builder/styles/fields";
 import { defaultTokens } from "@/builder/styles/tokens";
 import { createComponentRegistry } from "@/builder/registry/registry";
+import { buildStyleDigest, formatStyleDigest } from "./style-digest";
 import { buildAIPrompt, DESIGN_RECIPES } from "./prompt";
 import { createDefaultDocument } from "@/lib/builder/seed";
+import type { BuilderDocument, BuilderNode } from "../document/types";
 
 describe("buildAIPrompt", () => {
   it("includes every registered component type from the registry", () => {
@@ -57,5 +59,54 @@ describe("buildAIPrompt", () => {
     expect(user).toContain(document.id);
     expect(user).toContain(document.pages[0]!.id);
     expect(user).toContain("one section");
+  });
+
+  it("includes the style digest when the document has authored styles", () => {
+    const registry = createComponentRegistry();
+    registerBuiltInComponents(registry);
+
+    const styledDocument: BuilderDocument = {
+      ...createDefaultDocument("executive", "digest-test"),
+      pages: [
+        {
+          id: "page-1",
+          name: "Home",
+          path: "/",
+          root: {
+            id: "root",
+            type: "Page",
+            props: {},
+            styles: {},
+            children: [
+              {
+                id: "card",
+                type: "Container",
+                props: {},
+                styles: { base: { borderRadius: "16px", backgroundColor: "#f1f5f9" } },
+                children: [],
+              } satisfies BuilderNode,
+            ],
+          },
+        },
+      ],
+    };
+
+    const digest = formatStyleDigest(buildStyleDigest(styledDocument));
+    expect(digest).toContain("16px");
+    expect(digest).toContain("#f1f5f9");
+
+    const { system } = buildAIPrompt(registry, styledDocument, "Add another card row");
+    expect(system).toContain("Design already in use");
+    expect(system).toContain("16px");
+  });
+
+  it("omits the digest section on an empty document", () => {
+    const registry = createComponentRegistry();
+    registerBuiltInComponents(registry);
+    const document = createDefaultDocument("executive", "digest-empty");
+    const { system } = buildAIPrompt(registry, document, "Add a hero");
+
+    expect(system).not.toContain("Design already in use (match these):");
+    expect(formatStyleDigest(buildStyleDigest(document))).toBeNull();
   });
 });

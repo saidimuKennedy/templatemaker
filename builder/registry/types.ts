@@ -7,8 +7,8 @@
  * hardcodes a component type.
  */
 
+import type { CSSProperties, ComponentType } from "react";
 import type { NodeProps } from "../document/types";
-import type { ComponentType } from "react";
 
 export type ComponentCategory =
   | "Layout"
@@ -81,6 +81,14 @@ export interface ComponentDefinition {
   readonly defaultProps: NodeProps;
   readonly propertySchema: PropertySchema;
   readonly constraints: NodeConstraints;
+  /**
+   * Render-time CSS defaults applied before authored styles. Used by the
+   * Design panel to show effective values (Plan 26, Stage 2) and to seed
+   * layout intent into styles (ADR-010).
+   */
+  readonly resolveStyleDefaults?: (props: NodeProps) => CSSProperties;
+  /** Prop keys owned by layout intent — migrated to styles, not Content tab. */
+  readonly layoutPropKeys?: readonly string[];
 }
 
 /** The registry surface consumed by the toolbox, canvas, and renderer. */

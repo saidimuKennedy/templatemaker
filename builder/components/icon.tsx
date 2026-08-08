@@ -1,6 +1,8 @@
 import { createElement } from "react";
+import type { CSSProperties } from "react";
 import { HelpCircle } from "lucide-react";
 import type { ComponentDefinition } from "../registry/types";
+import type { NodeProps } from "../document/types";
 import { ICON_NAMES, resolveIcon } from "./icon-set";
 
 function IconToolboxGlyph() {
@@ -10,6 +12,13 @@ function IconToolboxGlyph() {
       <path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
+}
+
+export function resolveIconStyleDefaults(_props: NodeProps = {}): CSSProperties {
+  return {
+    display: "inline-flex",
+    lineHeight: 1,
+  };
 }
 
 function IconRenderer({
@@ -24,6 +33,7 @@ function IconRenderer({
   const label = typeof props.label === "string" ? props.label.trim() : "";
   const style = props.style as React.CSSProperties | undefined;
   const icon = resolveIcon(name) ?? HelpCircle;
+  const defaults = resolveIconStyleDefaults();
 
   // Icons here are decorative by default: they sit beside a heading or a
   // label that already carries the meaning, so exposing them to a screen
@@ -37,8 +47,7 @@ function IconRenderer({
       data-node-type="Icon"
       data-node-id={id}
       style={{
-        display: "inline-flex",
-        lineHeight: 1,
+        ...defaults,
         ...style,
       }}
       {...(decorative ? { "aria-hidden": true } : { role: "img", "aria-label": label })}
@@ -54,6 +63,7 @@ export const IconComponent: ComponentDefinition = {
   icon: IconToolboxGlyph,
   renderer: IconRenderer,
   defaultProps: { name: "star", label: "" },
+  resolveStyleDefaults: resolveIconStyleDefaults,
   propertySchema: [
     {
       key: "name",

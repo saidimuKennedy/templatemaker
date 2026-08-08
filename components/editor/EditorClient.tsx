@@ -26,6 +26,7 @@ import type { EditorSession } from "@/builder/history/session";
 import { createCompositeCommand } from "@/builder/history/composite";
 import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
+import { migrateDocumentLayoutIntent, seedLayoutStyles } from "@/builder/styles/layout-intent";
 import type { Breakpoint } from "@/builder/styles/types";
 import { createPortfolioRegistry } from "@/lib/builder";
 import { cn } from "@/lib/utils";
@@ -122,7 +123,9 @@ type EditorClientProps = {
 
 export function EditorClient({ portfolioId, initialDocument, status, slug }: EditorClientProps) {
   const registry = createPortfolioRegistry();
-  const [session, setSession] = useState<EditorSession>(() => createEditorSession(initialDocument));
+  const [session, setSession] = useState<EditorSession>(() =>
+    createEditorSession(migrateDocumentLayoutIntent(initialDocument, registry)),
+  );
   const skipAutosaveRef = useRef(true);
   const [currentPageId, setCurrentPageId] = useState<PageId>(
     () => initialDocument.pages[0]?.id ?? "",
@@ -434,13 +437,16 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         payload: {
           pageId: page.id,
           parentId,
-          node: {
-            id: generateNodeId(),
-            type: componentType,
-            props: { ...definition.defaultProps },
-            styles: {},
-            children: [],
-          },
+          node: seedLayoutStyles(
+            {
+              id: generateNodeId(),
+              type: componentType,
+              props: { ...definition.defaultProps },
+              styles: {},
+              children: [],
+            },
+            registry,
+          ),
         },
       });
     },

@@ -1,5 +1,7 @@
 import { Children } from "react";
+import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../registry/types";
+import type { NodeProps } from "../document/types";
 import { EmptyPlaceholder } from "./empty-placeholder";
 
 function NavbarIcon() {
@@ -9,6 +11,17 @@ function NavbarIcon() {
       <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1" opacity="0.4" />
     </svg>
   );
+}
+
+export function resolveNavbarStyleDefaults(_props: NodeProps = {}): CSSProperties {
+  return {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    rowGap: "8px",
+  };
 }
 
 function NavbarRenderer({
@@ -21,23 +34,14 @@ function NavbarRenderer({
   readonly children?: React.ReactNode;
 }) {
   const style = props.style as React.CSSProperties | undefined;
+  const defaults = resolveNavbarStyleDefaults();
 
   return (
     <nav
       data-node-type="Navbar"
       data-node-id={id}
       style={{
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        // A nav that cannot wrap has only bad options when it runs out of
-        // room: crush its items or overflow the page. Wrapping is the one
-        // that stays readable, and it needs no breakpoint to kick in — which
-        // matters because the canvas simulates width with `maxWidth`, where
-        // viewport media queries do not apply.
-        flexWrap: "wrap",
-        rowGap: "8px",
+        ...defaults,
         ...style,
       }}
     >
@@ -52,6 +56,7 @@ export const NavbarComponent: ComponentDefinition = {
   icon: NavbarIcon,
   renderer: NavbarRenderer,
   defaultProps: {},
+  resolveStyleDefaults: resolveNavbarStyleDefaults,
   propertySchema: [],
   constraints: {},
 };

@@ -5,6 +5,7 @@
 import type { BuilderDocument, BuilderNode, NodeProps, NodeStyles } from "../document/types";
 import type { Command } from "../history/types";
 import type { ComponentRegistry } from "../registry/types";
+import { mergeLayoutDefaultsIntoStyles, seedLayoutStyles } from "../styles/layout-intent";
 import { normalizeNodeStylesWithLogging } from "./normalize-styles";
 import type { AIOperation } from "./schema";
 
@@ -68,22 +69,39 @@ export function translateOperations(
           throw new Error(`Node id "${operation.id}" already exists.`);
         }
 
-        const allowedKeys = definition.propertySchema.map((field) => field.key);
+        const layoutKeys = new Set(definition.layoutPropKeys ?? []);
+        const allowedKeys = definition.propertySchema
+          .map((field) => field.key)
+          .filter((key) => !layoutKeys.has(key));
+        const mergedProps = { ...definition.defaultProps, ...operation.props };
         const props = filterProps(operation.props, allowedKeys, definition.defaultProps);
+
+        const normalized = normalizeNodeStylesWithLogging(operation.styles ?? {});
+        const stylesWithLayout = mergeLayoutDefaultsIntoStyles(
+          mergedProps,
+          normalized,
+          operation.componentType,
+          registry,
+        ) as NodeStyles;
+
+        const node = seedLayoutStyles(
+          {
+            id: operation.id,
+            type: operation.componentType,
+            props,
+            styles: stylesWithLayout,
+            children: [],
+            ...(operation.name !== undefined ? { name: operation.name } : {}),
+          },
+          registry,
+        );
 
         commands.push({
           type: "CreateNode",
           payload: {
             pageId: operation.pageId,
             parentId: operation.parentId,
-            node: {
-              id: operation.id,
-              type: operation.componentType,
-              props,
-              styles: normalizeNodeStylesWithLogging(operation.styles ?? {}) as NodeStyles,
-              children: [],
-              ...(operation.name !== undefined ? { name: operation.name } : {}),
-            },
+            node,
           },
         });
         knownNodeIds.add(operation.id);
