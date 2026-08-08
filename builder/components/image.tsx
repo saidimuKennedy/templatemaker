@@ -1,4 +1,5 @@
 import type { ComponentDefinition } from "../registry/types";
+import { buildResponsiveImageSources } from "../assets/image-url";
 
 function ImageIcon() {
   return (
@@ -10,6 +11,13 @@ function ImageIcon() {
   );
 }
 
+const OBJECT_FIT_OPTIONS = [
+  { label: "Cover", value: "cover" },
+  { label: "Contain", value: "contain" },
+  { label: "Fill", value: "fill" },
+  { label: "None", value: "none" },
+] as const;
+
 function ImageRenderer({
   id,
   props,
@@ -20,7 +28,17 @@ function ImageRenderer({
 }) {
   const src = typeof props.src === "string" ? props.src : "";
   const alt = typeof props.alt === "string" ? props.alt : "";
+  const objectFit = typeof props.objectFit === "string" ? props.objectFit : "cover";
+  const aspectRatio = typeof props.aspectRatio === "string" ? props.aspectRatio : "";
   const style = props.style as React.CSSProperties | undefined;
+
+  const baseStyle: React.CSSProperties = {
+    maxWidth: "100%",
+    display: "block",
+    ...(aspectRatio ? { aspectRatio, width: "100%" } : { height: "auto" }),
+    ...(objectFit ? { objectFit: objectFit as React.CSSProperties["objectFit"] } : {}),
+    ...style,
+  };
 
   if (!src) {
     return (
@@ -35,7 +53,7 @@ function ImageRenderer({
           background: "#f1f1f1",
           color: "#888",
           fontSize: "0.75rem",
-          ...style,
+          ...baseStyle,
         }}
       >
         No image selected
@@ -43,13 +61,19 @@ function ImageRenderer({
     );
   }
 
+  const responsive = buildResponsiveImageSources(src);
+
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- builder Image emits srcset for provider assets; plain URLs stay as img
     <img
       data-node-type="Image"
       data-node-id={id}
-      src={src}
+      src={responsive.src}
+      srcSet={responsive.srcSet}
+      sizes={responsive.sizes}
+      loading={responsive.loading}
       alt={alt}
-      style={{ maxWidth: "100%", height: "auto", display: "block", ...style }}
+      style={baseStyle}
     />
   );
 }
@@ -59,7 +83,7 @@ export const ImageComponent: ComponentDefinition = {
   category: "Content",
   icon: ImageIcon,
   renderer: ImageRenderer,
-  defaultProps: { src: "", alt: "" },
+  defaultProps: { src: "", alt: "", objectFit: "cover", aspectRatio: "" },
   propertySchema: [
     {
       key: "src",
@@ -73,6 +97,28 @@ export const ImageComponent: ComponentDefinition = {
       type: "string",
       defaultValue: "",
     },
+    {
+      key: "objectFit",
+      label: "Object fit",
+      type: "select",
+      options: OBJECT_FIT_OPTIONS.map((option) => ({ label: option.label, value: option.value })),
+      defaultValue: "cover",
+    },
+    {
+      key: "aspectRatio",
+      label: "Aspect ratio",
+      type: "string",
+      defaultValue: "",
+    },
   ],
   constraints: { allowedChildren: [] },
 };
+
+/**
+ * Image overlay pattern (Image cannot have children in HTML):
+ *
+ * Container  base { position: relative, overflow: hidden, borderRadius: 24px }
+ * ├─ Image    base { width: 100%, height: 100%, objectFit: cover }
+ * └─ Container base { position: absolute, inset 0, backgroundImage: linear-gradient(...) }
+ *    └─ Heading / Text / Icon
+ */

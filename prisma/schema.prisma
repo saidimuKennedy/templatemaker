@@ -15,6 +15,7 @@ model User {
   updatedAt  DateTime    @updatedAt
   sessions   Session[]
   portfolios Portfolio[]
+  assets     Asset[]
 }
 
 model Session {
@@ -46,4 +47,22 @@ enum PortfolioStatus {
   DRAFT
   PUBLISHED
   UNPUBLISHED
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  userId       String
+  provider     String
+  providerId   String
+  url          String
+  width        Int      @default(0)
+  height       Int      @default(0)
+  byteSize     Int      @default(0)
+  contentType  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([provider, providerId])
 }

@@ -40,6 +40,44 @@ describe("translateOperations", () => {
     });
   });
 
+  it("normalizes flat styles into base on create", () => {
+    const registry = createPortfolioRegistry();
+    const document = createDefaultDocument("executive", "translate-styles");
+    const page = document.pages[0]!;
+
+    const commands = translateOperations(
+      [
+        {
+          op: "create",
+          id: "styled-node",
+          pageId: page.id,
+          parentId: page.root.id,
+          componentType: "Container",
+          styles: {
+            backgroundColor: "#f1f5f9",
+            borderRadius: "16px",
+          } as never,
+        },
+      ],
+      document,
+      registry,
+    );
+
+    expect(commands[0]).toMatchObject({
+      type: "CreateNode",
+      payload: {
+        node: {
+          styles: {
+            base: {
+              backgroundColor: "#f1f5f9",
+              borderRadius: "16px",
+            },
+          },
+        },
+      },
+    });
+  });
+
   it("rejects unknown component types", () => {
     const registry = createPortfolioRegistry();
     const document = createDefaultDocument("executive", "translate-unknown");

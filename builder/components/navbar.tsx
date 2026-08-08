@@ -31,6 +31,13 @@ function NavbarRenderer({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        // A nav that cannot wrap has only bad options when it runs out of
+        // room: crush its items or overflow the page. Wrapping is the one
+        // that stays readable, and it needs no breakpoint to kick in — which
+        // matters because the canvas simulates width with `maxWidth`, where
+        // viewport media queries do not apply.
+        flexWrap: "wrap",
+        rowGap: "8px",
         ...style,
       }}
     >

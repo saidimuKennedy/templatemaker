@@ -7,8 +7,26 @@
  */
 
 import { z } from "zod";
+import { normalizeNodeStylesWithLogging } from "./normalize-styles";
 
 const propsRecord = z.record(z.string(), z.unknown());
+
+const styleDeclarationSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number()]),
+);
+
+const normalizedStylesSchema = z.preprocess(
+  (value) => normalizeNodeStylesWithLogging(value),
+  z
+    .object({
+      base: styleDeclarationSchema.optional(),
+      sm: styleDeclarationSchema.optional(),
+      md: styleDeclarationSchema.optional(),
+      lg: styleDeclarationSchema.optional(),
+    })
+    .strict(),
+);
 
 export const aiCreateOperationSchema = z.object({
   op: z.literal("create"),
@@ -17,7 +35,7 @@ export const aiCreateOperationSchema = z.object({
   parentId: z.string().min(1),
   componentType: z.string().min(1),
   props: propsRecord.optional(),
-  styles: propsRecord.optional(),
+  styles: normalizedStylesSchema.optional(),
   name: z.string().optional(),
 });
 
@@ -32,7 +50,7 @@ export const aiUpdateStylesOperationSchema = z.object({
   op: z.literal("updateStyles"),
   pageId: z.string().min(1),
   nodeId: z.string().min(1),
-  styles: propsRecord,
+  styles: normalizedStylesSchema,
 });
 
 export const aiMoveOperationSchema = z.object({

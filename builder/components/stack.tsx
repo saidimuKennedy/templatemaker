@@ -39,6 +39,7 @@ function StackRenderer({
   const direction = props.direction === "row" ? "row" : "column";
   const justify = typeof props.justify === "string" ? props.justify : "start";
   const align = typeof props.align === "string" ? props.align : "stretch";
+  const wrap = props.wrap === "nowrap" ? "nowrap" : "wrap";
   const style = props.style as React.CSSProperties | undefined;
   return (
     <div
@@ -50,6 +51,12 @@ function StackRenderer({
         gap: "8px",
         justifyContent: JUSTIFY_MAP[justify] ?? JUSTIFY_MAP.start,
         alignItems: ALIGN_MAP[align] ?? ALIGN_MAP.stretch,
+        // Row stacks wrap by default. A non-wrapping row is the single most
+        // common source of "it doesn't collapse on mobile": the items simply
+        // squash until the text is unreadable. Authors who genuinely want a
+        // fixed row (a logo lockup, an icon beside a label) set Wrap:
+        // "nowrap". Column stacks are unaffected either way.
+        ...(direction === "row" ? { flexWrap: wrap } : {}),
         ...style,
       }}
     >
@@ -63,7 +70,7 @@ export const StackComponent: ComponentDefinition = {
   category: "Layout",
   icon: StackIcon,
   renderer: StackRenderer,
-  defaultProps: { direction: "column", justify: "start", align: "stretch" },
+  defaultProps: { direction: "column", justify: "start", align: "stretch", wrap: "wrap" },
   propertySchema: [
     {
       key: "direction",
@@ -99,6 +106,16 @@ export const StackComponent: ComponentDefinition = {
         { label: "Stretch", value: "stretch" },
       ],
       defaultValue: "stretch",
+    },
+    {
+      key: "wrap",
+      label: "Wrap (row only)",
+      type: "select",
+      options: [
+        { label: "Wrap", value: "wrap" },
+        { label: "No wrap", value: "nowrap" },
+      ],
+      defaultValue: "wrap",
     },
   ],
   constraints: {},

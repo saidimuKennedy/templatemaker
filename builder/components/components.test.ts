@@ -42,7 +42,7 @@ describe("built-in layout primitives", () => {
     );
   });
 
-  it("Grid resolves its column count", () => {
+  it("Grid uses mobile-first auto-fit columns", () => {
     const grid = makeNode("grid-1", "Grid", { columns: 3 }, [
       makeNode("img-1", "Image", { src: "a.png", alt: "a" }),
       makeNode("img-2", "Image", { src: "b.png", alt: "b" }),
@@ -52,7 +52,14 @@ describe("built-in layout primitives", () => {
     const gridHtml = renderToStaticMarkup(
       renderer.renderPage(gridPage, { registry, target: "editor-preview" }),
     );
-    assert(gridHtml.includes("grid-template-columns:repeat(3, 1fr)"), "Grid resolves 3 columns");
+    assert(
+      gridHtml.includes("auto-fit"),
+      "Grid sizes tracks with auto-fit so they collapse on narrow containers",
+    );
+    assert(
+      !gridHtml.includes("@media"),
+      "Grid collapses by container width, not a viewport media query — the canvas simulates width with maxWidth, where media queries do not apply",
+    );
   });
 
   it("Stack resolves justify and align props", () => {

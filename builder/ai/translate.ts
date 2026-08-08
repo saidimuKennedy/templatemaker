@@ -5,6 +5,7 @@
 import type { BuilderDocument, BuilderNode, NodeProps, NodeStyles } from "../document/types";
 import type { Command } from "../history/types";
 import type { ComponentRegistry } from "../registry/types";
+import { normalizeNodeStylesWithLogging } from "./normalize-styles";
 import type { AIOperation } from "./schema";
 
 function filterProps(
@@ -79,7 +80,7 @@ export function translateOperations(
               id: operation.id,
               type: operation.componentType,
               props,
-              styles: (operation.styles ?? {}) as NodeStyles,
+              styles: normalizeNodeStylesWithLogging(operation.styles ?? {}) as NodeStyles,
               children: [],
               ...(operation.name !== undefined ? { name: operation.name } : {}),
             },
@@ -111,7 +112,7 @@ export function translateOperations(
           payload: {
             pageId: operation.pageId,
             nodeId: operation.nodeId,
-            styles: operation.styles as NodeStyles,
+            styles: normalizeNodeStylesWithLogging(operation.styles) as NodeStyles,
           },
         });
         break;

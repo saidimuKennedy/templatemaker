@@ -137,16 +137,17 @@ export function AIPanel({
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Generate with AI</DialogTitle>
+          <DialogTitle>Generate section with AI</DialogTitle>
           <DialogDescription>
-            Describe the section or changes you want. The model produces editable commands — use Undo or
-            Revert to roll back. Does not survive a page reload until Plan 18 versioning lands.
+            Describe one section to append or refine. The model produces editable commands for a single
+            section at a time — use Undo or Revert to roll back. Does not survive a page reload until Plan 18
+            versioning lands.
           </DialogDescription>
         </DialogHeader>
         <textarea
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
-          placeholder='e.g. "Add a contact section with a heading and a button linking to mailto:me@example.com"'
+          placeholder='e.g. "Add a services section with three tinted cards, each with an icon, heading, and short description"'
           maxLength={AI_RATE_LIMITS.maxPromptLength}
           rows={5}
           className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
@@ -160,7 +161,7 @@ export function AIPanel({
             Cancel
           </Button>
           <Button type="button" onClick={handleSubmit} disabled={pending || prompt.trim().length === 0}>
-            {pending ? "Generating…" : "Generate"}
+            {pending ? "Generating section…" : "Generate section"}
           </Button>
         </DialogFooter>
       </DialogContent>

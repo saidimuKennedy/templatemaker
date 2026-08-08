@@ -13,6 +13,7 @@ import type { Command } from "@/builder/history/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import type { Breakpoint } from "@/builder/styles/types";
 import { StyleInspector } from "@/components/editor/StyleInspector";
+import { ImageFieldControl } from "@/components/editor/ImageFieldControl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -143,27 +144,13 @@ function FieldControl({
   if (field.type === "image") {
     const urlValue = typeof field.value === "string" ? field.value : "";
     return (
-      <div className="space-y-2">
-        <Label htmlFor={field.key}>{field.label}</Label>
-        {urlValue ? (
-          <div className="overflow-hidden rounded-md border border-border bg-muted/30">
-            {/* eslint-disable-next-line @next/next/no-img-element -- inspector preview for arbitrary URLs and data: URIs */}
-            <img
-              src={urlValue}
-              alt=""
-              className="max-h-24 w-full object-contain"
-            />
-          </div>
-        ) : null}
-        <Input
-          id={field.key}
-          type="url"
-          value={urlValue}
-          placeholder="https://… or data:…"
-          data-invalid={invalid}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      </div>
+      <ImageFieldControl
+        fieldKey={field.key}
+        label={field.label}
+        value={urlValue}
+        invalid={invalid}
+        onChange={onChange}
+      />
     );
   }
 

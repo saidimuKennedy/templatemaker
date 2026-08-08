@@ -218,6 +218,7 @@ eleven visual acceptance checks also remain unconfirmed.
 | 23 | Published breakpoint overrides never apply | `builder/styles/responsive.ts` | 17 | Fix found by the v1 sign-off. Brief lived in chat, not a plan file |
 | 24 | [Surface Engine Capabilities](./24-surface-engine-capabilities.md) | `components/editor/*`, `builder/history/{session,types,commands}.ts` | 23 (Stage 1 verification) | **Staged — stop for review after each stage** |
 | 25 | [AI Visual Fidelity](./25-ai-visual-fidelity.md) | `builder/ai/{prompt,schema,translate}.ts`, `builder/components/{icon,image}.tsx`, `builder/assets/*`, `prisma/schema.prisma` | 19 | **Staged — stop for review after each stage.** Stage 1 is blocking; Stage 5 adds asset storage and reverses Plan 24's no-blob-storage deferral |
+| 26 | [Design Coherence](./26-design-coherence.md) | `builder/ai/style-digest.ts`, `components/editor/{Inspector,StyleInspector}.tsx`, `builder/document/*` (Stage 4) | 25 | **Staged.** Stage 1 landed; Stages 3 and 4 each need an ADR before implementation |
 
 Plan 23 fixes a bug the Plan 17 sign-off found by measuring computed
 styles in a browser: published pages emit base styles inline and sm/md/lg
@@ -277,6 +278,18 @@ generation, normalise-and-warn on malformed styles, and a fidelity bar of
 *same class of quality* rather than pixel parity — which is why inline
 accent spans (Stage 6) are cut. The acceptance target is a real page:
 `docs/plans/assets/25-target-about-page.png`.
+
+Plan 26 is what Plan 25's output revealed once more than one page existed.
+Generated pages look designed but not like *each other*: three visually
+identical cards are three independent copies of nine hardcoded
+declarations, because the document has no shared-style concept and
+`defaultTokens` is a global read-only constant the model copies values out
+of rather than references. Stage 1 (style digest fed back into the prompt,
+plus off-palette drift measurement) has landed. Stage 2 surfaces effective
+values in the Design panel, which today shows "Default" next to a node
+that is visibly a grid. Stages 3 and 4 — collapsing the props-vs-styles
+duplication for layout intent, then shared named styles — change the
+document model and **each require an ADR before implementation**.
 
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals

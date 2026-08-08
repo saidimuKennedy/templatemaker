@@ -61,6 +61,12 @@ const DISPLAY_OPTIONS = [
   { label: "None", value: "none" },
 ] as const;
 
+const FLEX_WRAP_OPTIONS = [
+  { label: "Wrap", value: "wrap" },
+  { label: "No wrap", value: "nowrap" },
+  { label: "Wrap reverse", value: "wrap-reverse" },
+] as const;
+
 const FLEX_DIRECTION_OPTIONS = [
   { label: "Row", value: "row" },
   { label: "Column", value: "column" },
@@ -171,7 +177,14 @@ export const STYLE_GROUPS: readonly StyleGroup[] = [
       { key: "flexDirection", label: "Direction", kind: "select", options: FLEX_DIRECTION_OPTIONS },
       { key: "justifyContent", label: "Justify", kind: "select", options: JUSTIFY_OPTIONS },
       { key: "alignItems", label: "Align", kind: "select", options: ALIGN_OPTIONS },
+      { key: "flexWrap", label: "Wrap", kind: "select", options: FLEX_WRAP_OPTIONS },
       { key: "gap", label: "Gap", kind: "spacing" },
+      {
+        key: "gridTemplateColumns",
+        label: "Grid columns",
+        kind: "text",
+        hint: "e.g. 1fr 2fr, or repeat(auto-fit, minmax(240px, 1fr))",
+      },
     ],
   },
   {
