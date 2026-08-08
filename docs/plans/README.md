@@ -217,6 +217,7 @@ eleven visual acceptance checks also remain unconfirmed.
 |---|------|-----------|------------|-------|
 | 23 | Published breakpoint overrides never apply | `builder/styles/responsive.ts` | 17 | Fix found by the v1 sign-off. Brief lived in chat, not a plan file |
 | 24 | [Surface Engine Capabilities](./24-surface-engine-capabilities.md) | `components/editor/*`, `builder/history/{session,types,commands}.ts` | 23 (Stage 1 verification) | **Staged — stop for review after each stage** |
+| 25 | [AI Visual Fidelity](./25-ai-visual-fidelity.md) | `builder/ai/{prompt,schema,translate}.ts`, `builder/components/{icon,image}.tsx`, `builder/assets/*`, `prisma/schema.prisma` | 19 | **Staged — stop for review after each stage.** Stage 1 is blocking; Stage 5 adds asset storage and reverses Plan 24's no-blob-storage deferral |
 
 Plan 23 fixes a bug the Plan 17 sign-off found by measuring computed
 styles in a browser: published pages emit base styles inline and sm/md/lg
@@ -251,6 +252,31 @@ Stage 3 is also gated on making publishing page-aware **first** (Stage
 3a): `renderDocument` concatenates every page into one output, so a second
 page would silently append itself to the published site. Editor and
 publishing must land together there.
+
+Plan 25 is the same audit applied to AI generation: Plan 19 made the model
+structurally correct (operations → commands → session) but the pages it
+produces are visually null. Its Stage 1 is blocking and is a genuine
+defect, not a polish item — `buildAIPrompt` never tells the model the
+style vocabulary or the breakpoint-keyed `{ base: {…} }` shape, and
+`translate.ts` casts `styles` through unvalidated, so a flat declaration
+is stored and then resolved to nothing. Styles disappear with no error.
+Stages 2–4 add the one genuinely missing primitive (an `Icon` component
+over the already-installed `lucide-react`), image crop/fit props, and
+composition recipes in the prompt. Stage 5 covers images on two fronts: a
+curated set of bundled Pexels placeholders the AI can name, and
+provider-backed user uploads behind an `AssetStorageProvider` interface
+(Cloudinary first, an internal S3 tool later) with signed
+direct-to-provider uploads, a per-user `Asset` model, and size reduction
+both at upload and at delivery. **That reverses the "no blob storage"
+non-goal Plan 24 recorded** — the owner approved it; the deferral is no
+longer binding.
+
+Owner decisions are listed at the top of the plan and are closed: lucide
+for icons, Pexels placeholders plus Cloudinary uploads, section-by-section
+generation, normalise-and-warn on malformed styles, and a fidelity bar of
+*same class of quality* rather than pixel parity — which is why inline
+accent spans (Stage 6) are cut. The acceptance target is a real page:
+`docs/plans/assets/25-target-about-page.png`.
 
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals

@@ -23,7 +23,7 @@
  */
 
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { ComponentRegistry } from "../registry/types";
 import { buildAIPrompt } from "./prompt";
 import { aiResponseSchema } from "./schema";
@@ -49,7 +49,12 @@ export function createOpenAICompatibleProvider(
     apiKey,
     modelId,
     registry,
-    maxOutputTokens = 4096,
+    // Generating a page section is a lot of JSON: ~20 nodes with props,
+    // styles, and names. At 4096 the model runs out of tokens mid-object,
+    // the partial JSON fails to parse, and it surfaces as the generic
+    // "No object generated" — which reads like the model refused rather
+    // than like a truncation. Keep this generous.
+    maxOutputTokens = 16_000,
     name = "openai-compatible",
   } = config;
 
@@ -61,17 +66,41 @@ export function createOpenAICompatibleProvider(
     async generate(request: AIGenerateRequest): Promise<AIGenerateResult> {
       const { system, user } = buildAIPrompt(registry, request.document, request.prompt);
 
-      const result = await generateText({
-        model: client(modelId),
-        system,
-        prompt: user,
-        maxOutputTokens,
-        output: Output.object({
-          schema: aiResponseSchema,
-          name: "builder_commands",
-          description: "Structured builder operations to modify a portfolio page",
-        }),
-      });
+      let result;
+      try {
+        result = await generateText({
+          model: client(modelId),
+          system,
+          prompt: user,
+          maxOutputTokens,
+          output: Output.object({
+            schema: aiResponseSchema,
+            name: "builder_commands",
+            description: "Structured builder operations to modify a portfolio page",
+          }),
+        });
+      } catch (error) {
+        // The SDK throws NoObjectGeneratedError before `result.output` can
+        // be inspected, and its default message is the bare "No object
+        // generated." — which is indistinguishable across three very
+        // different failures: the response was truncated, the model
+        // emitted prose instead of JSON, or the JSON didn't match the
+        // schema. The error carries what separates them, so unpack it
+        // rather than letting the generic message reach the user.
+        if (NoObjectGeneratedError.isInstance(error)) {
+          const reason =
+            error.finishReason === "length"
+              ? `the response hit the ${maxOutputTokens}-token limit and was truncated mid-object — raise maxOutputTokens or ask for a smaller section`
+              : `the model returned output that could not be parsed or did not match the schema (${error.cause instanceof Error ? error.cause.message : "no cause reported"})`;
+
+          const preview = error.text ? ` Model output began: ${error.text.slice(0, 300)}` : "";
+
+          throw new Error(
+            `Model "${modelId}" at ${baseURL} produced no usable object: ${reason}.${preview}`,
+          );
+        }
+        throw error;
+      }
 
       if (!result.output) {
         throw new Error(
