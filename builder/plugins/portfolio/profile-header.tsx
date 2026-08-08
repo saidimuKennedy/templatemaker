@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../../registry/types";
+import { EmptyPlaceholder } from "../../components/empty-placeholder";
 
 function ProfileHeaderIcon() {
   return (
@@ -27,13 +28,20 @@ function ProfileHeaderRenderer({
   const bio = stringProp(props, "bio");
   const location = stringProp(props, "location");
   const style = props.style as CSSProperties | undefined;
+  const isEmpty = !name && !tagline && !bio && !location;
 
   return (
     <div data-node-type="ProfileHeader" data-node-id={id} style={style}>
-      <h1>{name}</h1>
-      <p data-role="tagline">{tagline}</p>
-      <p>{bio}</p>
-      <p>{location}</p>
+      {isEmpty ? (
+        <EmptyPlaceholder label="Empty ProfileHeader" />
+      ) : (
+        <>
+          <h1>{name}</h1>
+          <p data-role="tagline">{tagline}</p>
+          <p>{bio}</p>
+          <p>{location}</p>
+        </>
+      )}
     </div>
   );
 }

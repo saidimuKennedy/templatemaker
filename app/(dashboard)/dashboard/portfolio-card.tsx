@@ -67,7 +67,8 @@ export function PortfolioCard({ portfolio }: PortfolioCardProps) {
             </p>
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {/* Stable id (see app/(dashboard)/layout.tsx) — avoids Radix useId hydration mismatch. */}
+            <DropdownMenuTrigger asChild id={`portfolio-actions-${portfolio.id}`}>
               <Button variant="ghost" size="sm" disabled={pending} aria-label="Actions">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>

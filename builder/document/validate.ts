@@ -75,7 +75,13 @@ export function validateAgainstRegistry(project: BuilderProject, registry: Compo
     if (!definition) {
       errors.push({ path, message: `Unknown component type "${node.type}".` });
     } else {
-      const { allowedParents, allowedChildren } = definition.constraints;
+      const { allowedParents, allowedChildren, rootOnly } = definition.constraints;
+      if (rootOnly && parent !== null) {
+        errors.push({
+          path,
+          message: `Component "${node.type}" may only be used as a page root, not nested under "${parent.type}".`,
+        });
+      }
       if (allowedParents && !(parent && allowedParents.includes(parent.type))) {
         errors.push({
           path,

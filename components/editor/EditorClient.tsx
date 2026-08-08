@@ -8,9 +8,15 @@ import {
 } from "@/app/(dashboard)/editor/[id]/_actions";
 import { Canvas, initialCanvasState } from "@/components/editor/Canvas";
 import { Inspector } from "@/components/editor/Inspector";
+import { Navigator } from "@/components/editor/Navigator";
 import { Toolbox } from "@/components/editor/Toolbox";
 import { ViewportToggle } from "@/components/editor/ViewportToggle";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { findNodeAndParent } from "@/builder/document/tree";
@@ -21,20 +27,23 @@ import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
 import type { Breakpoint } from "@/builder/styles/types";
 import { createPortfolioRegistry } from "@/lib/builder";
+import { Plus } from "lucide-react";
 
 type EditorClientProps = {
   portfolioId: string;
   initialDocument: BuilderDocument;
   status: string;
+  slug: string | null;
 };
 
-export function EditorClient({ portfolioId, initialDocument, status }: EditorClientProps) {
+export function EditorClient({ portfolioId, initialDocument, status, slug }: EditorClientProps) {
   const registry = createPortfolioRegistry();
   const [session] = useState(() => createEditorSession(initialDocument));
   const skipAutosaveRef = useRef(true);
   const [documentVersion, setDocumentVersion] = useState(0);
   const [canvasState, setCanvasState] = useState(initialCanvasState);
-  const [viewport, setViewport] = useState<Breakpoint>("base");
+  const [viewport, setViewport] = useState<Breakpoint>("lg");
+  const [isToolboxOpen, setIsToolboxOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -101,8 +110,16 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
 
   const handleAddComponent = useCallback(
     (componentType: string) => {
+      setIsToolboxOpen(false);
       const definition = registry.get(componentType);
       if (!definition) {
+        return;
+      }
+      if (definition.constraints.rootOnly) {
+        toast({
+          title: "Can't add here",
+          description: `${componentType} can only be a page's root node.`,
+        });
         return;
       }
 
@@ -141,7 +158,7 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
         },
       });
     },
-    [handleCommand, registry, selectedNodeId],
+    [handleCommand, registry, selectedNodeId, toast],
   );
 
   const handlePublish = () => {
@@ -187,8 +204,45 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
     });
   };
 
+  const handleCopyEmbedCode = async () => {
+    if (!slug) {
+      return;
+    }
+    const src = `${window.location.origin}/embed/${slug}`;
+    const snippet = `<iframe src="${src}" style="width:100%;border:0" title="Portfolio"></iframe>`;
+    try {
+      await navigator.clipboard.writeText(snippet);
+      toast({ title: "Copied", description: "Embed code copied to clipboard." });
+    } catch {
+      toast({ title: "Error", description: "Could not copy embed code." });
+    }
+  };
+
+  const handleExportJson = () => {
+    const json = exportDocumentJson(session.getDocument());
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = window.document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${slug ?? portfolioId}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
+      <DropdownMenu open={isToolboxOpen} onOpenChange={setIsToolboxOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            <span>Add element</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-72 p-2 max-h-[32rem] overflow-y-auto">
+          <Toolbox registry={registry} onAdd={handleAddComponent} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
       <ViewportToggle value={viewport} onChange={setViewport} />
       <Button type="button" variant="outline" disabled={pending} onClick={() => handleSave()}>
@@ -203,18 +257,35 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
           Publish
         </Button>
       )}
+      {status === "PUBLISHED" && slug ? (
+        <Button type="button" variant="outline" onClick={handleCopyEmbedCode}>
+          Copy embed code
+        </Button>
+      ) : null}
+      <Button type="button" variant="outline" onClick={handleExportJson}>
+        Export JSON
+      </Button>
     </div>
   );
 
   const inspector = (
     <Inspector
-      key={documentVersion}
+      key={selectedNodeId}
       document={session.getDocument()}
       pageId={pageId}
       selectedNodeId={selectedNodeId}
       registry={registry}
       viewport={viewport}
       onCommand={handleCommand}
+    />
+  );
+
+  const navigatorPanel = (
+    <Navigator
+      document={session.getDocument()}
+      pageId={pageId}
+      canvasState={canvasState}
+      onCanvasStateChange={setCanvasState}
     />
   );
 
@@ -236,19 +307,23 @@ export function EditorClient({ portfolioId, initialDocument, status }: EditorCli
   return (
     <div className="space-y-4">
       {toolbar}
-      <div className="hidden h-[calc(100vh-12rem)] md:grid md:grid-cols-[220px_minmax(0,1fr)_280px] md:gap-4">
-        {toolbox}
+      <div className="hidden h-[calc(100vh-12rem)] md:grid md:grid-cols-[280px_minmax(0,1fr)_300px] md:gap-4">
+        {navigatorPanel}
         {canvas}
         {inspector}
       </div>
 
       <div className="md:hidden">
         <Tabs defaultValue="canvas" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="navigator">Navigator</TabsTrigger>
             <TabsTrigger value="toolbox">Components</TabsTrigger>
             <TabsTrigger value="canvas">Canvas</TabsTrigger>
             <TabsTrigger value="inspector">Properties</TabsTrigger>
           </TabsList>
+          <TabsContent value="navigator" className="mt-4 min-h-[50vh]">
+            {navigatorPanel}
+          </TabsContent>
           <TabsContent value="toolbox" className="mt-4 min-h-[50vh]">
             {toolbox}
           </TabsContent>

@@ -36,6 +36,17 @@ export interface BuilderNode {
   readonly id: NodeId;
   /** Component type, resolved through the Component Registry. */
   readonly type: string;
+  /**
+   * Author-given label for this node, shown in the Navigator. Purely
+   * presentational: nothing resolves behaviour from it, and it is never
+   * rendered into published output.
+   *
+   * Optional because `type` is always a usable fallback — but a tree of
+   * ten nodes all labelled "Stack" is unnavigable, which is the whole
+   * reason the Navigator needs this. Documents authored before this
+   * field existed stay valid and simply fall back to `type`.
+   */
+  readonly name?: string;
   readonly props: NodeProps;
   readonly styles: NodeStyles;
   readonly children: readonly BuilderNode[];

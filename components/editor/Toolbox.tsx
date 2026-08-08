@@ -1,7 +1,6 @@
 "use client";
 
-import type { ComponentCategory } from "@/builder/registry/types";
-import type { ComponentRegistry } from "@/builder/registry/types";
+import type { ComponentCategory, ComponentRegistry } from "@/builder/registry/types";
 import { Button } from "@/components/ui/button";
 
 const CATEGORY_ORDER: ComponentCategory[] = [
@@ -19,10 +18,10 @@ type ToolboxProps = {
 
 export function Toolbox({ registry, onAdd }: ToolboxProps) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto rounded-lg border border-border p-3">
+    <div className="flex flex-col gap-3 p-1">
       <div>
-        <p className="text-sm font-medium">Components</p>
-        <p className="text-xs text-muted-foreground">Add nodes to the canvas</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add element</p>
+        <p className="text-[11px] text-muted-foreground">Insert a node into the page structure</p>
       </div>
       {CATEGORY_ORDER.map((category) => {
         const components = registry.listByCategory(category);
@@ -30,8 +29,8 @@ export function Toolbox({ registry, onAdd }: ToolboxProps) {
           return null;
         }
         return (
-          <div key={category} className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <div key={category} className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
               {category}
             </p>
             <div className="grid grid-cols-1 gap-1">
@@ -41,14 +40,14 @@ export function Toolbox({ registry, onAdd }: ToolboxProps) {
                   <Button
                     key={component.type}
                     type="button"
-                    variant="outline"
-                    className="h-auto justify-start gap-2 px-2 py-2 text-left"
+                    variant="ghost"
+                    className="h-8 justify-start gap-2 px-2 text-left w-full hover:bg-muted/80"
                     onClick={() => onAdd(component.type)}
                   >
-                    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+                    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
                       <Icon />
                     </span>
-                    <span className="text-sm">{component.type}</span>
+                    <span className="text-xs font-medium">{component.type}</span>
                   </Button>
                 );
               })}

@@ -34,5 +34,5 @@ export const PageComponent: ComponentDefinition = {
   renderer: PageRenderer,
   defaultProps: {},
   propertySchema: [],
-  constraints: {},
+  constraints: { rootOnly: true },
 };

@@ -32,8 +32,30 @@ pages, customer portals, surveys, dashboards, and CRM interfaces.
 
 ## Out of Scope (v1)
 
+Retained as the historical record of what v1 meant. Some of these moved
+into v2 — see below and `docs/decisions/ADR-007-v2-scope-expansion.md`.
+
 -   Real-time collaboration
 -   AI generation
 -   Marketplace
 -   Full CMS
 -   Advanced animation timelines
+
+## In Scope (v2)
+
+Added by ADR-007 after v1 completion (`docs/V1-COMPLETION.md`):
+
+-   **Versioning** — snapshot on publish with restore. Closes a gap
+    already assigned to the Document Engine in
+    `docs/02-core-architecture.md`, rather than an expansion.
+-   **AI page generation** — via the ADR-005 provider abstraction,
+    emitting Builder commands per ADR-006. Never HTML.
+-   **Animation timeline** — keyframe-based, with triggers.
+
+## Still Out of Scope (v2)
+
+-   Real-time collaboration
+-   Marketplace / plugin marketplace
+-   Full CMS
+-   Custom code injection
+-   Complex workflow automation

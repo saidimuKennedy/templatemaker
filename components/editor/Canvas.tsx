@@ -7,13 +7,15 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
-import { resolveDropCommand } from "@/builder/canvas/drag";
+import { beginDrag, endDrag, resolveDropCommand, updateDropTarget } from "@/builder/canvas/drag";
+import { resolveDuplicateCommand } from "@/builder/canvas/duplicate";
 import { resolveKeyAction } from "@/builder/canvas/keyboard";
 import { clearSelection, select } from "@/builder/canvas/selection";
-import { initialCanvasState, type CanvasState } from "@/builder/canvas/types";
+import { initialCanvasState, type CanvasState, type DropPosition } from "@/builder/canvas/types";
 import { findNodeAndParent } from "@/builder/document/tree";
 import type { PageId } from "@/builder/document/types";
 import type { EditorSession } from "@/builder/history/session";
@@ -28,7 +30,7 @@ const VIEWPORT_MAX_WIDTH: Record<Breakpoint, string> = {
   base: "390px",
   sm: "640px",
   md: "768px",
-  lg: "1024px",
+  lg: "100%",
 };
 
 type CanvasProps = {
@@ -54,6 +56,7 @@ export function Canvas({
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [overlayStyle, setOverlayStyle] = useState<CSSProperties | null>(null);
+  const [dropOverlayStyle, setDropOverlayStyle] = useState<CSSProperties | null>(null);
 
   const document = session.getDocument();
 
@@ -147,7 +150,80 @@ export function Canvas({
     return () => window.removeEventListener("resize", updateOverlay);
   }, [selectedNodeId, documentVersion]);
 
+  // Every rendered node is a candidate drag source except the page root
+  // (moving a page's own root is rejected by applyMoveNode anyway). Stamped
+  // imperatively rather than by modifying component renderers, since those
+  // are registered, not owned by the canvas.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const page = document.pages.find((entry) => entry.id === pageId);
+    const rootId = page?.root.id;
+    const nodes = container.querySelectorAll<HTMLElement>("[data-node-id]");
+    nodes.forEach((element) => {
+      const id = element.getAttribute("data-node-id");
+      if (id && id !== rootId) {
+        element.setAttribute("draggable", "true");
+      } else {
+        element.removeAttribute("draggable");
+      }
+    });
+  }, [documentVersion, viewport, pageId, document]);
+
+  useEffect(() => {
+    const dropTarget = canvasState.dropTarget;
+    if (!dropTarget || !containerRef.current) {
+      setDropOverlayStyle(null);
+      return;
+    }
+    const element = containerRef.current.querySelector(`[data-node-id="${dropTarget.nodeId}"]`);
+    if (!element) {
+      setDropOverlayStyle(null);
+      return;
+    }
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    const top = rect.top - containerRect.top + containerRef.current.scrollTop;
+    const left = rect.left - containerRect.left + containerRef.current.scrollLeft;
+
+    if (dropTarget.position === "inside") {
+      setDropOverlayStyle({
+        position: "absolute",
+        top,
+        left,
+        width: rect.width,
+        height: rect.height,
+        pointerEvents: "none",
+        outline: "2px solid #2563eb",
+        outlineOffset: "-2px",
+        borderRadius: "2px",
+        zIndex: 10,
+      });
+      return;
+    }
+
+    const lineTop = dropTarget.position === "before" ? top - 1 : top + rect.height - 1;
+    setDropOverlayStyle({
+      position: "absolute",
+      top: lineTop,
+      left,
+      width: rect.width,
+      height: "2px",
+      pointerEvents: "none",
+      backgroundColor: "#2563eb",
+      zIndex: 10,
+    });
+  }, [canvasState.dropTarget, documentVersion]);
+
   const handleCanvasClick = (event: MouseEvent<HTMLDivElement>) => {
+    // Rendered nodes can be real anchors (Link/LinkBlock/Button with href) or
+    // submit buttons. Inside the canvas a click means "select this node", so
+    // suppress the element's own default action — otherwise clicking a link
+    // navigates away from the editor instead of selecting it.
+    event.preventDefault();
+
     const target = (event.target as HTMLElement).closest("[data-node-id]");
     if (!target || !containerRef.current?.contains(target)) {
       onCanvasStateChange(clearSelection(canvasState));
@@ -179,7 +255,8 @@ export function Canvas({
     }
 
     if (action === "duplicate") {
-      // TODO: node duplication is a follow-up.
+      event.preventDefault();
+      duplicateSelected();
       return;
     }
 
@@ -208,6 +285,66 @@ export function Canvas({
     }
   };
 
+  const resolveDropPosition = (target: HTMLElement, clientY: number): DropPosition => {
+    const type = target.getAttribute("data-node-type");
+    const definition = type ? registry.get(type) : undefined;
+    const allowedChildren = definition?.constraints.allowedChildren;
+    const acceptsChildren = allowedChildren === undefined || allowedChildren.length > 0;
+    const rect = target.getBoundingClientRect();
+    const ratio = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5;
+    if (acceptsChildren && ratio > 0.25 && ratio < 0.75) {
+      return "inside";
+    }
+    return ratio < 0.5 ? "before" : "after";
+  };
+
+  const handleDragStart = (event: DragEvent<HTMLDivElement>) => {
+    const target = (event.target as HTMLElement).closest("[data-node-id]");
+    const nodeId = target?.getAttribute("data-node-id");
+    if (!nodeId) {
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", nodeId);
+    onCanvasStateChange(beginDrag(canvasState, nodeId));
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!canvasState.dragging) {
+      return;
+    }
+    event.preventDefault();
+    const target = (event.target as HTMLElement).closest("[data-node-id]") as HTMLElement | null;
+    if (!target || !containerRef.current?.contains(target)) {
+      return;
+    }
+    const nodeId = target.getAttribute("data-node-id");
+    if (!nodeId || nodeId === canvasState.dragging.nodeId) {
+      return;
+    }
+    const position = resolveDropPosition(target, event.clientY);
+    const current = canvasState.dropTarget;
+    if (!current || current.nodeId !== nodeId || current.position !== position) {
+      onCanvasStateChange(updateDropTarget(canvasState, { nodeId, position }));
+    }
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const { dragging, dropTarget } = canvasState;
+    if (dragging && dropTarget) {
+      const command = resolveDropCommand(document, pageId, dragging.nodeId, dropTarget);
+      if (command) {
+        applyCommand(command);
+      }
+    }
+    onCanvasStateChange(endDrag(canvasState));
+  };
+
+  const handleDragEnd = () => {
+    onCanvasStateChange(endDrag(canvasState));
+  };
+
   const moveSelected = (direction: "up" | "down") => {
     if (!selectedNodeId || !selectedFound?.parent) {
       return;
@@ -223,6 +360,16 @@ export function Canvas({
         ? { nodeId: sibling.id, position: "before" as const }
         : { nodeId: sibling.id, position: "after" as const };
     const command = resolveDropCommand(document, pageId, selectedNodeId, dropTarget);
+    if (command) {
+      applyCommand(command);
+    }
+  };
+
+  const duplicateSelected = () => {
+    if (!selectedNodeId || isPageRoot) {
+      return;
+    }
+    const command = resolveDuplicateCommand(document, pageId, selectedNodeId);
     if (command) {
       applyCommand(command);
     }
@@ -267,6 +414,15 @@ export function Canvas({
             size="sm"
             variant="outline"
             disabled={isPageRoot}
+            onClick={duplicateSelected}
+          >
+            Duplicate
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isPageRoot}
             onClick={deleteSelected}
           >
             Delete
@@ -274,19 +430,33 @@ export function Canvas({
         </div>
       ) : null}
 
+      {/*
+        Editor-only minimum hit area: some nodes (thin text, empty leaf
+        components before EmptyPlaceholder-style content is entered) can
+        render at just a few pixels tall, which makes them hard to click to
+        select. Scoped to this canvas instance and never emitted in
+        published output (see lib/builder/content.tsx's renderPublished,
+        which has no equivalent rule).
+      */}
+      <style>{`.builder-canvas-root [data-node-id] { min-height: 8px; }`}</style>
       <div
         ref={containerRef}
         tabIndex={0}
         role="application"
         aria-label="Portfolio canvas"
-        className="relative min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-background p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+        className="builder-canvas-root relative min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-background p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
         onClick={handleCanvasClick}
         onKeyDown={handleKeyDown}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onDragEnd={handleDragEnd}
       >
         <div className="mx-auto transition-[max-width]" style={{ maxWidth: VIEWPORT_MAX_WIDTH[viewport] }}>
           {renderedPage}
         </div>
         {overlayStyle ? <div aria-hidden="true" style={overlayStyle} /> : null}
+        {dropOverlayStyle ? <div aria-hidden="true" style={dropOverlayStyle} /> : null}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../../registry/types";
+import { EmptyPlaceholder } from "../../components/empty-placeholder";
 
 function SkillGroupIcon() {
   return (
@@ -38,15 +39,22 @@ function SkillGroupRenderer({
   const category = stringProp(props, "category");
   const items = splitCommaList(stringProp(props, "items"));
   const style = props.style as CSSProperties | undefined;
+  const isEmpty = !category && items.length === 0;
 
   return (
     <div data-node-type="SkillGroup" data-node-id={id} style={style}>
-      <h4>{category}</h4>
-      <ul>
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
+      {isEmpty ? (
+        <EmptyPlaceholder label="Empty SkillGroup" />
+      ) : (
+        <>
+          <h4>{category}</h4>
+          <ul>
+            {items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

@@ -47,6 +47,14 @@ export interface NodeConstraints {
   readonly allowedParents?: readonly string[];
   /** Component types allowed as children. Omit/undefined = any. Empty = none (leaf). */
   readonly allowedChildren?: readonly string[];
+  /**
+   * This component may only ever be a page's root node — never nested
+   * inside another node. `allowedParents` can't express this: it
+   * constrains which *types* are valid parents, but a root node has no
+   * parent at all, so a root-only component like Page must be flagged
+   * explicitly instead.
+   */
+  readonly rootOnly?: boolean;
 }
 
 /**

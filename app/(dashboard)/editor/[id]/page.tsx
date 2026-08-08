@@ -38,6 +38,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
         portfolioId={portfolio.id}
         initialDocument={initialDocument}
         status={portfolio.status}
+        slug={portfolio.slug}
       />
     </div>
   );

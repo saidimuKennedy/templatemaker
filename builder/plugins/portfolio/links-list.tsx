@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../../registry/types";
+import { EmptyPlaceholder } from "../../components/empty-placeholder";
 
 function LinksListIcon() {
   return (
@@ -48,11 +49,17 @@ function LinksListRenderer({
 
   return (
     <ul data-node-type="LinksList" data-node-id={id} style={style}>
-      {links.map(({ key, label, href }) => (
-        <li key={key}>
-          <a href={href}>{label}</a>
+      {links.length === 0 ? (
+        <li>
+          <EmptyPlaceholder label="Empty LinksList" />
         </li>
-      ))}
+      ) : (
+        links.map(({ key, label, href }) => (
+          <li key={key}>
+            <a href={href}>{label}</a>
+          </li>
+        ))
+      )}
     </ul>
   );
 }

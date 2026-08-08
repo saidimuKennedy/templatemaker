@@ -49,16 +49,20 @@ export default async function DashboardLayout({
         <div className="mt-auto pt-4">
           <Separator className="mb-4" />
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>{initials}</AvatarFallback>
-                </Avatar>
-                <span className="truncate text-xs">{user.email}</span>
-              </button>
+            {/*
+              Explicit id overrides Radix's useId()-derived trigger id (React 19
+              computed a different useId path client-side than during SSR), and
+              no `asChild` here: Radix renders its own <button> instead of
+              cloning ours through Slot, which is where hydration misaligned.
+            */}
+            <DropdownMenuTrigger
+              id="account-menu-trigger"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted"
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+              <span className="truncate text-xs">{user.email}</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
               <form action={signOut}>

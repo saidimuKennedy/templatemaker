@@ -8,6 +8,7 @@ import {
 } from "@/builder/document/validate";
 import type { BuilderDocument, BuilderNode, ValidationResult } from "@/builder/document/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
+import type { RenderTarget } from "@/builder/renderer/types";
 import { createRenderer } from "@/builder/renderer/renderer";
 import { createStyledRenderer } from "@/builder/styles/apply";
 import { buildResponsiveStylesheet } from "@/builder/styles/responsive";
@@ -72,19 +73,17 @@ export function getProfileHeaderBio(document: BuilderDocument): string {
   return typeof node.props.bio === "string" ? node.props.bio : "";
 }
 
-export function renderPublished(
+function renderResponsive(
   document: BuilderDocument,
   registry: ComponentRegistry,
+  target: RenderTarget,
 ): ReactElement {
   // Base styles are resolved inline (mobile-first default); sm/md/lg
   // overrides ship as real @media rules so a visitor's own browser
   // adapts to their actual viewport width, not a single server-picked
   // breakpoint.
   const renderer = createStyledRenderer(createRenderer(), "base");
-  const tree = renderer.renderDocument(document, {
-    registry,
-    target: "published-webview",
-  });
+  const tree = renderer.renderDocument(document, { registry, target });
   const stylesheet = buildResponsiveStylesheet(document);
 
   return (
@@ -93,6 +92,28 @@ export function renderPublished(
       {tree}
     </Fragment>
   );
+}
+
+export function renderPublished(
+  document: BuilderDocument,
+  registry: ComponentRegistry,
+): ReactElement {
+  return renderResponsive(document, registry, "published-webview");
+}
+
+/**
+ * Same responsive-stylesheet treatment as renderPublished, but with
+ * target "embedded-crm" — builder/publish/embed.ts's renderEmbed uses
+ * the plain (non-styled) renderer, which would make embedded pages
+ * ignore sm/md/lg overrides entirely. This app-level wrapper is kept
+ * here rather than changing builder/publish/embed.ts's renderer choice,
+ * since that file is engine code owned by a different plan.
+ */
+export function renderEmbedded(
+  document: BuilderDocument,
+  registry: ComponentRegistry,
+): ReactElement {
+  return renderResponsive(document, registry, "embedded-crm");
 }
 
 export function findNodeParentId(

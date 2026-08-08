@@ -121,6 +121,41 @@ plan's Acceptance Criteria).
 | 11 | [Style Editing UI](./11-style-editing-ui.md) | `builder/components/*` (fix), `builder/styles/fields.ts`, `components/editor/{StyleInspector,Inspector}.tsx` | 03, 04, 09 (already done) | 12 |
 | 12 | [Layout Primitives](./12-layout-primitives.md) | `builder/components/{stack,grid,navbar,footer,index}` | 02 (already done) | 11 |
 
+### Closing v1 (Plans 13–17)
+
+| # | Plan | Directory | Depends on | Can run in parallel with |
+|---|------|-----------|------------|---------------------------|
+| 13 | [Pointer Drag-and-Drop](./13-pointer-drag-and-drop.md) | `components/editor/Canvas.tsx` | 06 (done) | 14 (item 1 excepted), 15, 16 |
+| 14 | [v1 Correctness Pass](./14-v1-correctness-pass.md) | `builder/components/*`, `builder/plugins/portfolio/*`, `builder/canvas/duplicate.ts`, `builder/registry/types.ts` | — | 13, 15, 16 |
+| 15 | [Publish Surfacing](./15-publish-surfacing.md) | `app/embed/[slug]/`, `components/editor/EditorClient.tsx` | 05 (done) | 13, 14, 16 |
+| 16 | [Test Harness](./16-test-harness.md) | `vitest.config.ts`, all `*/smoke.ts` → `*.test.ts`, `scripts/` | — | 13, 14, 15 (touches `package.json`) |
+| 17 | [v1 Sign-off](./17-v1-signoff.md) | `docs/V1-COMPLETION.md`, `docs/06-development-roadmap.md` | 13, 14, 15, 16 **verified** | — |
+
+Plans 13–16 are largely disjoint by directory and can run concurrently.
+Two coordination notes: Plan 14's item 1 (duplication) edits
+`Canvas.tsx`, which Plan 13 owns — land it after 13; and Plan 16 edits
+`package.json`, so avoid landing it at the same moment as another plan
+that adds a dependency. Plan 17 is verification only and must not start
+until the other four are actually verified, not merely written.
+
+### v2 (Plans 18–20) — see ADR-007
+
+These follow `docs/decisions/ADR-007-v2-scope-expansion.md`, which moved
+AI generation and animation timelines from "out of scope (v1)" into v2
+scope. Versioning was never out of scope — it closes a Document Engine
+responsibility documented in `docs/02-core-architecture.md` but never
+built.
+
+| # | Plan | Directory | Depends on | Notes |
+|---|------|-----------|------------|-------|
+| 18 | [Versioning](./18-versioning.md) | `prisma/schema.prisma`, `lib/builder/versions.ts`, editor actions + UI | v1 complete (17) | Do first — restore is what makes 19 and 20 safe to experiment with |
+| 19 | [AI Page Generation](./19-ai-page-generation.md) | `builder/ai/*`, server action, editor UI | 18 | Bound by ADR-005 + ADR-006: commands only, never HTML |
+| 20 | [Interactions & Animation Timeline](./20-interactions-and-animation-timeline.md) | `builder/document/types.ts`, `builder/history/*`, `builder/animations/*`, `components/editor/AnimationPanel.tsx` | 18 | Largest plan. **Staged** — stop for review after each of its 3 stages |
+
+Sequence 18 → 19 → 20 rather than in parallel: 18 is the safety net for
+the other two, and 20 changes the node contract and `schemaVersion`,
+which 19's prompt construction reads.
+
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals
 (both plans pin the exact same contract — see each doc's "Contract other

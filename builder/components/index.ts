@@ -10,6 +10,8 @@ export * from "./button";
 export * from "./grid";
 export * from "./navbar";
 export * from "./footer";
+export * from "./link";
+export * from "./link-block";
 
 import type { ComponentRegistry } from "../registry/types";
 import { PageComponent } from "./page";
@@ -23,6 +25,8 @@ import { ButtonComponent } from "./button";
 import { GridComponent } from "./grid";
 import { NavbarComponent } from "./navbar";
 import { FooterComponent } from "./footer";
+import { LinkComponent } from "./link";
+import { LinkBlockComponent } from "./link-block";
 
 export function registerBuiltInComponents(registry: ComponentRegistry): void {
   registry.register(PageComponent);
@@ -36,4 +40,6 @@ export function registerBuiltInComponents(registry: ComponentRegistry): void {
   registry.register(GridComponent);
   registry.register(NavbarComponent);
   registry.register(FooterComponent);
+  registry.register(LinkComponent);
+  registry.register(LinkBlockComponent);
 }

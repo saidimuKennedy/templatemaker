@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../../registry/types";
+import { EmptyPlaceholder } from "../../components/empty-placeholder";
 
 function ProjectCardIcon() {
   return (
@@ -38,6 +39,7 @@ function ProjectCardRenderer({
   const tags = splitCommaList(stringProp(props, "tags"));
   const featured = props.featured === true;
   const style = props.style as CSSProperties | undefined;
+  const isEmpty = !title && !description && !url && tags.length === 0;
 
   return (
     <article
@@ -46,20 +48,26 @@ function ProjectCardRenderer({
       data-featured={featured ? "true" : undefined}
       style={style}
     >
-      <h3>{title}</h3>
-      <p>{description}</p>
-      {tags.length > 0 ? (
-        <p>
-          {tags.map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
-        </p>
-      ) : null}
-      {url ? (
-        <a href={url} target="_blank" rel="noreferrer">
-          View project
-        </a>
-      ) : null}
+      {isEmpty ? (
+        <EmptyPlaceholder label="Empty ProjectCard" />
+      ) : (
+        <>
+          <h3>{title}</h3>
+          <p>{description}</p>
+          {tags.length > 0 ? (
+            <p>
+              {tags.map((tag) => (
+                <span key={tag}>{tag}</span>
+              ))}
+            </p>
+          ) : null}
+          {url ? (
+            <a href={url} target="_blank" rel="noreferrer">
+              View project
+            </a>
+          ) : null}
+        </>
+      )}
     </article>
   );
 }

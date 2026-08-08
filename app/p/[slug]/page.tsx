@@ -65,7 +65,16 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
       className="min-h-screen bg-background px-4 py-8 text-foreground"
       style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
     >
-      <div className="mx-auto max-w-[390px]">{renderPublished(document, registry)}</div>
+      {/*
+        Fluid, not fixed: the document is authored mobile-first and its sm/md/lg
+        overrides ship as real @media rules, so the container must be allowed to
+        grow with the viewport. Capping this at a phone width made every visitor
+        see the mobile layout while the desktop media queries still fired,
+        which overflowed the page horizontally.
+      */}
+      <div className="mx-auto w-full max-w-[1200px]">
+        {renderPublished(document, registry)}
+      </div>
     </div>
   );
 }

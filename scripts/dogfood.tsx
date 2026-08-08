@@ -10,10 +10,10 @@
 
 import { writeFileSync } from "fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { BuilderNode, BuilderPage } from "./document/types";
-import { createPortfolioRegistry } from "../lib/builder/registry";
-import { createRenderer } from "./renderer/renderer";
-import { createStyledRenderer } from "./styles/apply";
+import type { BuilderNode, BuilderPage } from "@/builder/document/types";
+import { createPortfolioRegistry } from "@/lib/builder/registry";
+import { createRenderer } from "@/builder/renderer/renderer";
+import { createStyledRenderer } from "@/builder/styles/apply";
 
 function node(
   id: string,
