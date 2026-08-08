@@ -6,19 +6,20 @@ import {
   getProfileHeaderName,
   parseBuilderContent,
   renderPublished,
+  resolvePageByPath,
 } from "@/lib/builder";
 import { prisma } from "@/lib/db";
 
 export const revalidate = false;
 
 type PublicPortfolioPageProps = {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string; path?: string[] }>;
 };
 
 export async function generateMetadata({
   params,
 }: PublicPortfolioPageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug, path } = await params;
   const portfolio = await prisma.portfolio.findFirst({
     where: { slug, status: "PUBLISHED" },
   });
@@ -32,18 +33,23 @@ export async function generateMetadata({
     return { title: portfolio.title };
   }
 
+  const page = resolvePageByPath(document, path);
+  if (!page) {
+    return { title: "Page not found" };
+  }
+
   const name = getProfileHeaderName(document) || portfolio.title;
   const bio = getProfileHeaderBio(document);
   const description = bio.slice(0, 160);
 
   return {
-    title: name,
+    title: path?.length ? `${page.name} · ${name}` : name,
     description: description || undefined,
   };
 }
 
 export default async function PublicPortfolioPage({ params }: PublicPortfolioPageProps) {
-  const { slug } = await params;
+  const { slug, path } = await params;
 
   const portfolio = await prisma.portfolio.findFirst({
     where: { slug, status: "PUBLISHED" },
@@ -55,6 +61,11 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
 
   const document = parseBuilderContent(portfolio.content);
   if (!document) {
+    notFound();
+  }
+
+  const page = resolvePageByPath(document, path);
+  if (!page) {
     notFound();
   }
 
@@ -73,7 +84,7 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
         which overflowed the page horizontally.
       */}
       <div className="mx-auto w-full max-w-[1200px]">
-        {renderPublished(document, registry)}
+        {renderPublished(document, registry, path)}
       </div>
     </div>
   );

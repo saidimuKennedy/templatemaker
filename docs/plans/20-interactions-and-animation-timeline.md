@@ -73,10 +73,16 @@ export interface BuilderNode {
 ```
 
 `animations` must be **optional** so every existing document stays
-valid. Bump `BuilderDocumentMeta.schemaVersion` to `2` for newly
-created documents, but `validateDocumentStructure` must keep accepting
-`schemaVersion: 1` documents unchanged — there is real data in the
-database.
+valid — a node without it simply has no animations.
+
+**Do not bump `schemaVersion`.** An earlier version of this plan said to
+bump it to `2`; that instruction is superseded by
+[ADR-008](../decisions/ADR-008-additive-document-evolution.md), which
+establishes that document-contract changes are additive and optional and
+that `schemaVersion` is provenance, never branched on. An optional field
+with a documented fallback is exactly the additive case, so no bump and
+no migration. `validateDocumentStructure` continues to ignore the field —
+there is real data in the database and it must keep loading unchanged.
 
 Add validation: offsets within 0..1 and sorted, `durationMs > 0`,
 non-empty keyframes, unique animation ids within a node.

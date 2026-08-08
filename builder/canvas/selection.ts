@@ -5,9 +5,26 @@ export function select(
   state: CanvasState,
   pageId: PageId,
   nodeId: NodeId,
-  options?: { additive?: boolean },
+  options?: { additive?: boolean; toggle?: boolean },
 ): CanvasState {
   const additive = options?.additive ?? false;
+  const toggle = options?.toggle ?? false;
+
+  if (
+    toggle &&
+    state.selection !== null &&
+    state.selection.pageId === pageId &&
+    state.selection.selectedNodeIds.includes(nodeId)
+  ) {
+    const remaining = state.selection.selectedNodeIds.filter((id) => id !== nodeId);
+    if (remaining.length === 0) {
+      return { ...state, selection: null };
+    }
+    return {
+      ...state,
+      selection: { pageId, selectedNodeIds: remaining },
+    };
+  }
 
   if (!additive || state.selection === null || state.selection.pageId !== pageId) {
     return {

@@ -13,6 +13,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { PageSwitcher } from "@/components/editor/PageSwitcher";
 import { cn } from "@/lib/utils";
 
 type NavigatorProps = {
@@ -25,6 +26,8 @@ type NavigatorProps = {
   readonly editingNodeId: string | null;
   readonly onStartEdit: (nodeId: string) => void;
   readonly onEndEdit: () => void;
+  readonly onSelectPage: (pageId: PageId) => void;
+  readonly onNotify: (message: { title: string; description?: string }) => void;
 };
 
 type NodeRowProps = {
@@ -32,7 +35,7 @@ type NodeRowProps = {
   readonly depth: number;
   readonly pageId: PageId;
   readonly canvasState: CanvasState;
-  readonly onSelectNode: (nodeId: string) => void;
+  readonly onSelectNode: (nodeId: string, event?: React.MouseEvent) => void;
   readonly onCommand: (command: Command) => void;
   readonly nodeActions: NodeActions;
   readonly collapsedMap: Record<string, boolean>;
@@ -95,7 +98,7 @@ function NodeRow({
   const handleSelect = (e: React.MouseEvent) => {
     if (isEditing) return;
     e.stopPropagation();
-    onSelectNode(node.id);
+    onSelectNode(node.id, e);
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -307,6 +310,8 @@ export function Navigator({
   editingNodeId,
   onStartEdit,
   onEndEdit,
+  onSelectPage,
+  onNotify,
 }: NavigatorProps) {
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
   const [expandedForSelection, setExpandedForSelection] = useState<string | null>(null);
@@ -314,22 +319,20 @@ export function Navigator({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const page = document.pages.find((p) => p.id === pageId);
-  const selectedNodeId = canvasState.selection?.selectedNodeIds[0] ?? null;
+  const selectedNodeIds = canvasState.selection?.selectedNodeIds ?? [];
+  const selectedNodeId = selectedNodeIds[0] ?? null;
 
-  // Write the selected node's ancestors open, so a node selected on the
-  // canvas inside a collapsed branch is actually reachable.
-  //
-  // This is React's "adjust state during render" pattern, not an effect:
-  // an effect that calls setState synchronously cascades renders (and the
-  // compiler rejects it). It is a one-shot write into collapsedMap rather
-  // than a render-time override of isCollapsed — once expanded, the user
-  // stays free to collapse these branches again, which an override would
-  // make impossible for the whole ancestor chain of the selection.
-  if (selectedNodeId !== expandedForSelection) {
-    setExpandedForSelection(selectedNodeId);
-    if (selectedNodeId && page) {
-      const ancestors = findAncestorIds(page.root, selectedNodeId);
-      const stillCollapsed = ancestors?.filter((id) => collapsedMap[id]) ?? [];
+  // Write every selected node's ancestors open.
+  const selectionKey = selectedNodeIds.join(",");
+  if (selectionKey !== expandedForSelection) {
+    setExpandedForSelection(selectionKey);
+    if (selectedNodeIds.length > 0 && page) {
+      const ancestorIds = new Set<string>();
+      for (const nodeId of selectedNodeIds) {
+        const ancestors = findAncestorIds(page.root, nodeId);
+        ancestors?.forEach((id) => ancestorIds.add(id));
+      }
+      const stillCollapsed = [...ancestorIds].filter((id) => collapsedMap[id]);
       if (stillCollapsed.length > 0) {
         setCollapsedMap((prev) => {
           const next = { ...prev };
@@ -349,15 +352,13 @@ export function Navigator({
     }));
   };
 
-  const handleSelectNode = (nodeId: string) => {
-    // Only arm the flag when the selection will actually change. Clicking
-    // an already-selected row leaves selectedNodeId untouched, so the
-    // effect below never runs to disarm it — and the next canvas-driven
-    // selection would then read a stale "internal" and skip its scroll.
-    if (nodeId !== selectedNodeId) {
+  const handleSelectNode = (nodeId: string, event?: React.MouseEvent) => {
+    if (nodeId !== selectedNodeId && !selectedNodeIds.includes(nodeId)) {
       isInternalSelectionRef.current = true;
     }
-    onCanvasStateChange(select(canvasState, pageId, nodeId));
+    const additive = Boolean(event?.shiftKey || event?.metaKey || event?.ctrlKey);
+    const toggle = Boolean(event?.metaKey || event?.ctrlKey);
+    onCanvasStateChange(select(canvasState, pageId, nodeId, { additive, toggle }));
   };
 
   useEffect(() => {
@@ -416,6 +417,13 @@ export function Navigator({
           Navigator
         </h2>
       </div>
+      <PageSwitcher
+        pages={document.pages}
+        currentPageId={pageId}
+        onSelectPage={onSelectPage}
+        onCommand={onCommand}
+        onNotify={onNotify}
+      />
       <div
         ref={containerRef}
         className="editor-scroll flex-1 overflow-y-auto p-1 space-y-0.5"

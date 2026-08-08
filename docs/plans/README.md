@@ -211,6 +211,47 @@ Two things from 21/22 that later work must not undo:
 Known follow-up not yet built: Navigator drag-to-reorder. Plan 22's
 eleven visual acceptance checks also remain unconfirmed.
 
+### Correctness and coverage (Plans 23–24)
+
+| # | Plan | Directory | Depends on | Notes |
+|---|------|-----------|------------|-------|
+| 23 | Published breakpoint overrides never apply | `builder/styles/responsive.ts` | 17 | Fix found by the v1 sign-off. Brief lived in chat, not a plan file |
+| 24 | [Surface Engine Capabilities](./24-surface-engine-capabilities.md) | `components/editor/*`, `builder/history/{session,types,commands}.ts` | 23 (Stage 1 verification) | **Staged — stop for review after each stage** |
+
+Plan 23 fixes a bug the Plan 17 sign-off found by measuring computed
+styles in a browser: published pages emit base styles inline and sm/md/lg
+as `@media` rules, and inline styles outrank selector-based rules in the
+cascade, so **no breakpoint override ever applied** to a property that
+also had a base value. The fix marks the generated `@media` declarations
+`!important` rather than moving base styles into the stylesheet — because
+components inline their own styles too (`Section`'s `padding` prop, for
+one), and moving user base styles out of inline would let component
+defaults start beating explicit user choices.
+
+Plan 24 audits what the engine supports that no user can reach — multi-page
+documents, multi-select, the `sm`/`md` breakpoints, node resize,
+`color`/`image` property controls, undo/redo affordances, and design
+tokens — and stages the work to surface it.
+
+Three of its stages need real engine additions, so "the engine already
+supports this" does not hold universally there:
+
+- `canUndo`/`canRedo` on `EditorSession` (Stage 1b) — present on the
+  `History` interface, never surfaced, so undo/redo buttons cannot be
+  correctly disabled without it.
+- **A composite command (Stage 2a), which Plan 19 also needs.** Commands
+  are single-node, so any batch is N undo steps. AI generation emits many
+  commands per run — without a composite, "undo what the AI did" means
+  pressing Ctrl+Z dozens of times. Built once in Plan 24 and recorded as
+  ADR-009 so Plan 19 inherits the decision rather than re-making it.
+- Page-level commands (Stage 3b) — the `Command` union is entirely
+  node-scoped today.
+
+Stage 3 is also gated on making publishing page-aware **first** (Stage
+3a): `renderDocument` concatenates every page into one output, so a second
+page would silently append itself to the published site. Editor and
+publishing must land together there.
+
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals
 (both plans pin the exact same contract — see each doc's "Contract other

@@ -26,6 +26,7 @@ export type NodeActions = {
   readonly moveNode: (nodeId: string, direction: "up" | "down") => void;
   readonly duplicateNode: (nodeId: string) => void;
   readonly deleteNode: (nodeId: string) => void;
+  readonly deleteNodes: (nodeIds: readonly string[]) => void;
   readonly onRename: (nodeId: string) => void;
 };
 

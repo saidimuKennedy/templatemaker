@@ -9,10 +9,15 @@ import type {
   Command,
   CommandApplyResult,
   CommandEngine,
+  CompositePayload,
   CreateNodePayload,
+  CreatePagePayload,
   DeleteNodePayload,
+  DeletePagePayload,
   MoveNodePayload,
   RenameNodePayload,
+  ReorderPagePayload,
+  UpdatePagePayload,
   UpdatePropsPayload,
   UpdateStylesPayload,
 } from "./types";
@@ -113,6 +118,120 @@ function applyRenameNode(document: BuilderDocument, payload: RenameNodePayload):
   return replacePage(document, payload.pageId, newRoot);
 }
 
+function normalizePagePath(path: string): string {
+  const trimmed = path.trim();
+  if (trimmed === "" || trimmed === "/") {
+    return "/";
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function assertUniquePagePath(document: BuilderDocument, path: string, excludePageId?: PageId): void {
+  const normalized = normalizePagePath(path);
+  const duplicate = document.pages.find(
+    (page) => page.id !== excludePageId && normalizePagePath(page.path) === normalized,
+  );
+  if (duplicate) {
+    throw new Error(`Page path "${normalized}" is already used by page "${duplicate.name}".`);
+  }
+}
+
+function applyCreatePage(document: BuilderDocument, payload: CreatePagePayload): BuilderDocument {
+  assertUniquePagePath(document, payload.page.path);
+  const pages = [...document.pages];
+  const index = payload.index ?? pages.length;
+  if (index < 0 || index > pages.length) {
+    throw new Error(`Page index ${index} is out of range.`);
+  }
+  if (pages.some((page) => page.id === payload.page.id)) {
+    throw new Error(`Page id "${payload.page.id}" already exists.`);
+  }
+  pages.splice(index, 0, payload.page);
+  return {
+    ...document,
+    pages,
+    meta: { ...document.meta, updatedAt: new Date().toISOString() },
+  };
+}
+
+function applyDeletePage(document: BuilderDocument, payload: DeletePagePayload): BuilderDocument {
+  if (document.pages.length <= 1) {
+    throw new Error("Cannot delete the last remaining page.");
+  }
+  const index = document.pages.findIndex((page) => page.id === payload.pageId);
+  if (index === -1) {
+    throw new Error(`Page "${payload.pageId}" not found.`);
+  }
+  const pages = document.pages.filter((page) => page.id !== payload.pageId);
+  return {
+    ...document,
+    pages,
+    meta: { ...document.meta, updatedAt: new Date().toISOString() },
+  };
+}
+
+function applyUpdatePage(document: BuilderDocument, payload: UpdatePagePayload): BuilderDocument {
+  const page = document.pages.find((entry) => entry.id === payload.pageId);
+  if (!page) {
+    throw new Error(`Page "${payload.pageId}" not found.`);
+  }
+  const nextPath = payload.path !== undefined ? normalizePagePath(payload.path) : page.path;
+  if (payload.path !== undefined) {
+    assertUniquePagePath(document, nextPath, payload.pageId);
+  }
+  const pages = document.pages.map((entry) =>
+    entry.id === payload.pageId
+      ? {
+          ...entry,
+          ...(payload.name !== undefined ? { name: payload.name.trim() || entry.name } : {}),
+          ...(payload.path !== undefined ? { path: nextPath } : {}),
+        }
+      : entry,
+  );
+  return {
+    ...document,
+    pages,
+    meta: { ...document.meta, updatedAt: new Date().toISOString() },
+  };
+}
+
+function applyReorderPage(document: BuilderDocument, payload: ReorderPagePayload): BuilderDocument {
+  const currentIndex = document.pages.findIndex((page) => page.id === payload.pageId);
+  if (currentIndex === -1) {
+    throw new Error(`Page "${payload.pageId}" not found.`);
+  }
+  if (payload.newIndex < 0 || payload.newIndex >= document.pages.length) {
+    throw new Error(`Page index ${payload.newIndex} is out of range.`);
+  }
+  const pages = [...document.pages];
+  const [moved] = pages.splice(currentIndex, 1);
+  pages.splice(payload.newIndex, 0, moved);
+  return {
+    ...document,
+    pages,
+    meta: { ...document.meta, updatedAt: new Date().toISOString() },
+  };
+}
+
+function applyComposite(document: BuilderDocument, payload: CompositePayload): BuilderDocument {
+  let currentDocument = document;
+  const applied: Command[] = [];
+  try {
+    for (const command of payload.commands) {
+      currentDocument = applyCommand(currentDocument, command);
+      applied.push(command);
+    }
+    return currentDocument;
+  } catch (error) {
+    let rollbackDocument = document;
+    for (let index = applied.length - 1; index >= 0; index -= 1) {
+      const inverse = invertCommand(rollbackDocument, applied[index]!);
+      rollbackDocument = applyCommand(rollbackDocument, inverse);
+    }
+    throw error;
+  }
+}
+
 function applyCommand(document: BuilderDocument, command: Command): BuilderDocument {
   switch (command.type) {
     case "CreateNode":
@@ -127,6 +246,16 @@ function applyCommand(document: BuilderDocument, command: Command): BuilderDocum
       return applyUpdateStyles(document, command.payload);
     case "RenameNode":
       return applyRenameNode(document, command.payload);
+    case "Composite":
+      return applyComposite(document, command.payload);
+    case "CreatePage":
+      return applyCreatePage(document, command.payload);
+    case "DeletePage":
+      return applyDeletePage(document, command.payload);
+    case "UpdatePage":
+      return applyUpdatePage(document, command.payload);
+    case "ReorderPage":
+      return applyReorderPage(document, command.payload);
   }
 }
 
@@ -207,6 +336,50 @@ function invertCommand(document: BuilderDocument, command: Command): Command {
           nodeId: command.payload.nodeId,
           name: found.node.name,
         },
+      };
+    }
+    case "Composite": {
+      let workingDocument = document;
+      const inverses: Command[] = [];
+      for (const subcommand of command.payload.commands) {
+        inverses.push(invertCommand(workingDocument, subcommand));
+        workingDocument = applyCommand(workingDocument, subcommand);
+      }
+      return { type: "Composite", payload: { commands: inverses.reverse() } };
+    }
+    case "CreatePage": {
+      return { type: "DeletePage", payload: { pageId: command.payload.page.id } };
+    }
+    case "DeletePage": {
+      const page = document.pages.find((entry) => entry.id === command.payload.pageId);
+      if (!page) {
+        throw new Error(`Cannot invert DeletePage: page "${command.payload.pageId}" not found.`);
+      }
+      const index = document.pages.findIndex((entry) => entry.id === command.payload.pageId);
+      return { type: "CreatePage", payload: { page, index } };
+    }
+    case "UpdatePage": {
+      const page = document.pages.find((entry) => entry.id === command.payload.pageId);
+      if (!page) {
+        throw new Error(`Cannot invert UpdatePage: page "${command.payload.pageId}" not found.`);
+      }
+      return {
+        type: "UpdatePage",
+        payload: {
+          pageId: command.payload.pageId,
+          ...(command.payload.name !== undefined ? { name: page.name } : {}),
+          ...(command.payload.path !== undefined ? { path: page.path } : {}),
+        },
+      };
+    }
+    case "ReorderPage": {
+      const currentIndex = document.pages.findIndex((entry) => entry.id === command.payload.pageId);
+      if (currentIndex === -1) {
+        throw new Error(`Cannot invert ReorderPage: page "${command.payload.pageId}" not found.`);
+      }
+      return {
+        type: "ReorderPage",
+        payload: { pageId: command.payload.pageId, newIndex: currentIndex },
       };
     }
   }

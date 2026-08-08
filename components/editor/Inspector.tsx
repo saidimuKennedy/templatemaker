@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 type InspectorProps = {
   readonly document: BuilderDocument;
   readonly pageId: PageId;
-  readonly selectedNodeId: NodeId | null;
+  readonly selectedNodeIds: readonly NodeId[];
   readonly registry: ComponentRegistry;
   readonly viewport: Breakpoint;
   readonly onCommand: (command: Command) => void;
@@ -111,6 +111,62 @@ function FieldControl({
     );
   }
 
+  if (field.type === "color") {
+    const textValue = typeof field.value === "string" ? field.value : "";
+    const pickerValue = /^#[0-9a-fA-F]{6}$/.test(textValue) ? textValue : "#000000";
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={field.key}>{field.label}</Label>
+        <div className="flex items-center gap-2">
+          <input
+            id={`${field.key}-swatch`}
+            type="color"
+            value={pickerValue}
+            aria-label={`${field.label} swatch`}
+            className="h-9 w-9 shrink-0 cursor-pointer rounded border border-border bg-transparent p-0.5"
+            onChange={(event) => onChange(event.target.value)}
+          />
+          <Input
+            id={field.key}
+            type="text"
+            value={textValue}
+            placeholder="#000000, transparent, currentColor…"
+            data-invalid={invalid}
+            className="flex-1"
+            onChange={(event) => onChange(event.target.value)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (field.type === "image") {
+    const urlValue = typeof field.value === "string" ? field.value : "";
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={field.key}>{field.label}</Label>
+        {urlValue ? (
+          <div className="overflow-hidden rounded-md border border-border bg-muted/30">
+            {/* eslint-disable-next-line @next/next/no-img-element -- inspector preview for arbitrary URLs and data: URIs */}
+            <img
+              src={urlValue}
+              alt=""
+              className="max-h-24 w-full object-contain"
+            />
+          </div>
+        ) : null}
+        <Input
+          id={field.key}
+          type="url"
+          value={urlValue}
+          placeholder="https://… or data:…"
+          data-invalid={invalid}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <Label htmlFor={field.key}>{field.label}</Label>
@@ -128,14 +184,15 @@ function FieldControl({
 export function Inspector({
   document,
   pageId,
-  selectedNodeId,
+  selectedNodeIds,
   registry,
   viewport,
   onCommand,
 }: InspectorProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const selectedNodeId = selectedNodeIds[0] ?? null;
 
-  if (!selectedNodeId) {
+  if (selectedNodeIds.length === 0) {
     return (
       <div className="flex flex-col h-full min-h-0 border-l border-border bg-card">
         <div className="flex items-center justify-between px-3 py-2 border-b border-border">
@@ -148,6 +205,25 @@ export function Inspector({
         </div>
       </div>
     );
+  }
+
+  if (selectedNodeIds.length > 1) {
+    return (
+      <div className="flex flex-col h-full min-h-0 border-l border-border bg-card">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Properties
+          </h2>
+        </div>
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+          {selectedNodeIds.length} nodes selected. Select a single node to edit properties.
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedNodeId) {
+    return null;
   }
 
   const page = document.pages.find((entry) => entry.id === pageId);

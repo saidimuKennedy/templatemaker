@@ -10,11 +10,12 @@
 
 import type {
   BuilderDocument,
+  BuilderNode,
+  BuilderPage,
   NodeId,
   NodeProps,
   NodeStyles,
   PageId,
-  BuilderNode,
 } from "../document/types";
 
 export interface CreateNodePayload {
@@ -58,6 +59,31 @@ export interface RenameNodePayload {
   readonly name?: string;
 }
 
+export interface CompositePayload {
+  readonly commands: readonly Command[];
+}
+
+export interface CreatePagePayload {
+  readonly page: BuilderPage;
+  /** Index in pages array. Omit to append. */
+  readonly index?: number;
+}
+
+export interface DeletePagePayload {
+  readonly pageId: PageId;
+}
+
+export interface UpdatePagePayload {
+  readonly pageId: PageId;
+  readonly name?: string;
+  readonly path?: string;
+}
+
+export interface ReorderPagePayload {
+  readonly pageId: PageId;
+  readonly newIndex: number;
+}
+
 /**
  * The closed set of mutations the engine understands. New mutation
  * kinds are added here, not by having callers bypass Command and edit
@@ -69,7 +95,12 @@ export type Command =
   | { readonly type: "DeleteNode"; readonly payload: DeleteNodePayload }
   | { readonly type: "UpdateProps"; readonly payload: UpdatePropsPayload }
   | { readonly type: "UpdateStyles"; readonly payload: UpdateStylesPayload }
-  | { readonly type: "RenameNode"; readonly payload: RenameNodePayload };
+  | { readonly type: "RenameNode"; readonly payload: RenameNodePayload }
+  | { readonly type: "Composite"; readonly payload: CompositePayload }
+  | { readonly type: "CreatePage"; readonly payload: CreatePagePayload }
+  | { readonly type: "DeletePage"; readonly payload: DeletePagePayload }
+  | { readonly type: "UpdatePage"; readonly payload: UpdatePagePayload }
+  | { readonly type: "ReorderPage"; readonly payload: ReorderPagePayload };
 
 export type CommandType = Command["type"];
 

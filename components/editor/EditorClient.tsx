@@ -16,11 +16,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { resolveDropCommand } from "@/builder/canvas/drag";
 import { resolveDuplicateCommand } from "@/builder/canvas/duplicate";
+import { resolveKeyAction } from "@/builder/canvas/keyboard";
 import { clearSelection } from "@/builder/canvas/selection";
 import { findNodeAndParent } from "@/builder/document/tree";
 import { generateNodeId } from "@/builder/document/id";
-import type { BuilderDocument } from "@/builder/document/types";
+import type { BuilderDocument, PageId } from "@/builder/document/types";
 import { createEditorSession } from "@/builder/history/session";
+import { createCompositeCommand } from "@/builder/history/composite";
 import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
 import type { Breakpoint } from "@/builder/styles/types";
@@ -121,6 +123,9 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   const registry = createPortfolioRegistry();
   const [session] = useState(() => createEditorSession(initialDocument));
   const skipAutosaveRef = useRef(true);
+  const [currentPageId, setCurrentPageId] = useState<PageId>(
+    () => initialDocument.pages[0]?.id ?? "",
+  );
   const [documentVersion, setDocumentVersion] = useState(0);
   const [canvasState, setCanvasState] = useState(initialCanvasState);
   const [viewport, setViewport] = useState<Breakpoint>("lg");
@@ -130,8 +135,9 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const pageId = initialDocument.pages[0]?.id ?? "";
-  const selectedNodeId = canvasState.selection?.selectedNodeIds[0] ?? null;
+  const pageId = currentPageId;
+  const selectedNodeIds = canvasState.selection?.selectedNodeIds ?? [];
+  const selectedNodeId = selectedNodeIds[0] ?? null;
 
   // SSR trap: localStorage is read after mount so server and first client
   // render share the same default widths — reading during render causes
@@ -153,6 +159,61 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   const bumpDocumentVersion = useCallback(() => {
     setDocumentVersion((current) => current + 1);
   }, []);
+
+  const handleUndo = useCallback(() => {
+    if (!session.canUndo()) {
+      return;
+    }
+    session.undo();
+    bumpDocumentVersion();
+  }, [bumpDocumentVersion, session]);
+
+  const handleRedo = useCallback(() => {
+    if (!session.canRedo()) {
+      return;
+    }
+    session.redo();
+    bumpDocumentVersion();
+  }, [bumpDocumentVersion, session]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const action = resolveKeyAction({
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+      });
+
+      if (!action) {
+        return;
+      }
+
+      if (action === "undo" || action === "redo") {
+        const target = event.target;
+        if (target instanceof HTMLElement) {
+          const tag = target.tagName;
+          if (
+            tag === "INPUT" ||
+            tag === "TEXTAREA" ||
+            target.isContentEditable
+          ) {
+            return;
+          }
+        }
+
+        event.preventDefault();
+        if (action === "undo") {
+          handleUndo();
+        } else {
+          handleRedo();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleRedo, handleUndo]);
 
   const handleSave = useCallback(
     (options?: { silent?: boolean }) => {
@@ -287,6 +348,30 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
     [getActionState, handleCommand, pageId],
   );
 
+  const deleteNodes = useCallback(
+    (nodeIds: readonly string[]) => {
+      const deletable = nodeIds.filter((nodeId) => !getActionState(nodeId).isPageRoot);
+      if (deletable.length === 0) {
+        return;
+      }
+      handleCommand(
+        createCompositeCommand(
+          deletable.map((nodeId) => ({
+            type: "DeleteNode" as const,
+            payload: { pageId, nodeId },
+          })),
+        ),
+      );
+      setCanvasState((current) => clearSelection(current));
+    },
+    [getActionState, handleCommand, pageId],
+  );
+
+  const handleSelectPage = useCallback((nextPageId: PageId) => {
+    setCurrentPageId(nextPageId);
+    setCanvasState((current) => clearSelection(current));
+  }, []);
+
   const handleRenameNode = useCallback((nodeId: string) => {
     setEditingNodeId(nodeId);
   }, []);
@@ -296,6 +381,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
     moveNode,
     duplicateNode,
     deleteNode,
+    deleteNodes,
     onRename: handleRenameNode,
   };
 
@@ -313,7 +399,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         return;
       }
 
-      const page = session.getDocument().pages[0];
+      const page = session.getDocument().pages.find((entry) => entry.id === pageId);
       if (!page) {
         return;
       }
@@ -348,7 +434,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         },
       });
     },
-    [handleCommand, registry, selectedNodeId, session, toast],
+    [handleCommand, pageId, registry, selectedNodeId, session, toast],
   );
 
   const handlePublish = () => {
@@ -427,10 +513,10 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
 
   const inspector = (
     <Inspector
-      key={selectedNodeId}
+      key={selectedNodeIds.join(",") || "none"}
       document={session.getDocument()}
       pageId={pageId}
-      selectedNodeId={selectedNodeId}
+      selectedNodeIds={selectedNodeIds}
       registry={registry}
       viewport={viewport}
       onCommand={handleCommand}
@@ -448,6 +534,8 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       editingNodeId={editingNodeId}
       onStartEdit={setEditingNodeId}
       onEndEdit={() => setEditingNodeId(null)}
+      onSelectPage={handleSelectPage}
+      onNotify={({ title, description }) => toast({ title, description })}
     />
   );
 
@@ -479,6 +567,10 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         onUnpublish={handleUnpublish}
         onCopyEmbed={handleCopyEmbedCode}
         onExport={handleExportJson}
+        canUndo={session.canUndo()}
+        canRedo={session.canRedo()}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
       />
     </div>
   );

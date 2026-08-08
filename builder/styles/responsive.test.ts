@@ -38,6 +38,46 @@ describe("responsive stylesheet generator", () => {
     assert(css.includes('[data-node-id="node-1"]'), "rule targets the node's data-node-id attribute");
     assert(css.includes("font-size:24px"), "camelCase fontSize converts to kebab-case font-size");
     assert(css.includes("font-weight:600"), "fontWeight converts to font-weight");
+    assert(css.includes("font-size:24px !important"), "breakpoint declarations carry !important");
+    assert(css.includes("font-weight:600 !important"), "every property in a rule gets !important");
+  });
+
+  it("does not double-append !important when the value already contains it", () => {
+    const node: BuilderNode = {
+      id: "node-important",
+      type: "Text",
+      props: {},
+      styles: { lg: { fontSize: "140px !important" } },
+      children: [],
+    };
+
+    const css = buildResponsiveStylesheet(makeDoc(node));
+
+    assert(css.includes("font-size:140px !important"), "user-supplied !important is preserved once");
+    assert(!css.includes("!important !important"), "does not emit duplicated !important");
+  });
+
+  it("preserves sm → md → lg emission order per node (source order at wide viewports)", () => {
+    const node: BuilderNode = {
+      id: "ordered-node",
+      type: "Text",
+      props: {},
+      styles: {
+        sm: { fontSize: "20px" },
+        md: { fontSize: "24px" },
+        lg: { fontSize: "32px" },
+      },
+      children: [],
+    };
+
+    const css = buildResponsiveStylesheet(makeDoc(node));
+    const smIndex = css.indexOf("@media (min-width:640px)");
+    const mdIndex = css.indexOf("@media (min-width:768px)");
+    const lgIndex = css.indexOf("@media (min-width:1024px)");
+
+    assert(smIndex !== -1 && mdIndex !== -1 && lgIndex !== -1, "all three breakpoints are emitted");
+    assert(smIndex < mdIndex && mdIndex < lgIndex, "sm/md/lg order is preserved for cascade at wide viewports");
+    // String-level only — does not prove the browser cascade resolves inline base vs !important media rules.
   });
 
   it("sanitizes both the node id (selector) and style values against CSS injection", () => {

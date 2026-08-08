@@ -70,7 +70,7 @@ export function Canvas({
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contextMenuTargetRef = useRef<string | null>(null);
-  const [overlayStyle, setOverlayStyle] = useState<CSSProperties | null>(null);
+  const [overlayStyles, setOverlayStyles] = useState<CSSProperties[]>([]);
   const [dropOverlayStyle, setDropOverlayStyle] = useState<CSSProperties | null>(null);
   const [contextMenuNodeId, setContextMenuNodeId] = useState<string | null>(null);
 
@@ -92,7 +92,8 @@ export function Canvas({
     });
   }, [document, documentVersion, pageId, registry, styledRenderer]);
 
-  const selectedNodeId = canvasState.selection?.selectedNodeIds[0] ?? null;
+  const selectedNodeIds = canvasState.selection?.selectedNodeIds ?? [];
+  const selectedNodeId = selectedNodeIds[0] ?? null;
 
   const selectedFound = useMemo(() => {
     if (!selectedNodeId) {
@@ -105,8 +106,6 @@ export function Canvas({
     return findNodeAndParent(page.root, selectedNodeId);
   }, [document, pageId, selectedNodeId, documentVersion]);
 
-  const isPageRoot = selectedFound?.parent === null;
-
   const applyCommand = useCallback(
     (command: Command) => {
       const result = session.execute(command);
@@ -117,68 +116,53 @@ export function Canvas({
     [onDocumentChange, session],
   );
 
-  const runHistoryAction = useCallback(
-    (action: (currentSession: EditorSession) => void) => {
-      action(session);
-      onDocumentChange();
-    },
-    [onDocumentChange, session],
-  );
-
   useEffect(() => {
-    const updateOverlay = () => {
-      if (!selectedNodeId || !containerRef.current) {
-        setOverlayStyle(null);
-        return;
-      }
-      const element = containerRef.current.querySelector(
-        `[data-node-id="${selectedNodeId}"]`,
-      );
-      if (!element) {
-        setOverlayStyle(null);
+    const updateOverlays = () => {
+      if (selectedNodeIds.length === 0 || !containerRef.current) {
+        setOverlayStyles([]);
         return;
       }
       const containerRect = containerRef.current.getBoundingClientRect();
-      const rect = element.getBoundingClientRect();
-      setOverlayStyle({
-        position: "absolute",
-        top: rect.top - containerRect.top + containerRef.current.scrollTop,
-        left: rect.left - containerRect.left + containerRef.current.scrollLeft,
-        width: rect.width,
-        height: rect.height,
-        pointerEvents: "none",
-        outline: `2px solid ${SELECTION_COLOR}`,
-        outlineOffset: "2px",
-        borderRadius: "2px",
-      });
+      const styles: CSSProperties[] = [];
+      for (const nodeId of selectedNodeIds) {
+        const element = containerRef.current.querySelector(`[data-node-id="${nodeId}"]`);
+        if (!element) {
+          continue;
+        }
+        const rect = element.getBoundingClientRect();
+        styles.push({
+          position: "absolute",
+          top: rect.top - containerRect.top + containerRef.current.scrollTop,
+          left: rect.left - containerRect.left + containerRef.current.scrollLeft,
+          width: rect.width,
+          height: rect.height,
+          pointerEvents: "none",
+          outline: `2px solid ${SELECTION_COLOR}`,
+          outlineOffset: "2px",
+          borderRadius: "2px",
+        });
+      }
+      setOverlayStyles(styles);
     };
 
-    updateOverlay();
+    updateOverlays();
 
-    // A window resize listener is not enough: the canvas column is sized
-    // by the editor's CSS grid, so collapsing a sidebar or toggling the
-    // Mobile/Desktop viewport resizes THIS container while the window
-    // stays exactly the same size. No resize event fires, the overlay
-    // keeps its stale coordinates, and the selection box visibly detaches
-    // from the node it belongs to. Observe the box we actually measure
-    // against instead. The viewport toggle also animates max-width, so
-    // this fires throughout the transition and the outline tracks it.
-    const observer = new ResizeObserver(updateOverlay);
+    const observer = new ResizeObserver(updateOverlays);
     observer.observe(containerRef.current!);
 
-    const element = containerRef.current?.querySelector(
-      `[data-node-id="${selectedNodeId}"]`,
-    );
-    if (element) {
-      observer.observe(element);
+    for (const nodeId of selectedNodeIds) {
+      const element = containerRef.current?.querySelector(`[data-node-id="${nodeId}"]`);
+      if (element) {
+        observer.observe(element);
+      }
     }
 
-    window.addEventListener("resize", updateOverlay);
+    window.addEventListener("resize", updateOverlays);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", updateOverlay);
+      window.removeEventListener("resize", updateOverlays);
     };
-  }, [selectedNodeId, documentVersion, viewport]);
+  }, [selectedNodeIds, documentVersion, viewport]);
 
   // Every rendered node is a candidate drag source except the page root
   // (moving a page's own root is rejected by applyMoveNode anyway). Stamped
@@ -247,6 +231,12 @@ export function Canvas({
     });
   }, [canvasState.dropTarget, documentVersion]);
 
+  const handleSelectNode = (nodeId: string, event?: MouseEvent<HTMLElement>) => {
+    const additive = Boolean(event?.shiftKey || event?.metaKey || event?.ctrlKey);
+    const toggle = Boolean(event?.metaKey || event?.ctrlKey);
+    onCanvasStateChange(select(canvasState, pageId, nodeId, { additive, toggle }));
+  };
+
   const handleCanvasClick = (event: MouseEvent<HTMLDivElement>) => {
     // Rendered nodes can be real anchors (Link/LinkBlock/Button with href) or
     // submit buttons. Inside the canvas a click means "select this node", so
@@ -263,7 +253,7 @@ export function Canvas({
     if (!nodeId) {
       return;
     }
-    onCanvasStateChange(select(canvasState, pageId, nodeId));
+    handleSelectNode(nodeId, event);
   };
 
   const handleCanvasContextMenu = (event: MouseEvent<HTMLDivElement>) => {
@@ -287,7 +277,7 @@ export function Canvas({
     // link menus). We only block the event on empty canvas above.
     setContextMenuNodeId(nodeId);
     contextMenuTargetRef.current = nodeId;
-    onCanvasStateChange(select(canvasState, pageId, nodeId));
+    handleSelectNode(nodeId, event);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -316,24 +306,28 @@ export function Canvas({
       return;
     }
 
+    if (action === "undo" || action === "redo") {
+      return;
+    }
+
     event.preventDefault();
 
-    if (action === "undo") {
-      runHistoryAction((currentSession) => {
-        currentSession.undo();
+    if (action === "delete") {
+      event.preventDefault();
+      const deletable = selectedNodeIds.filter((nodeId) => {
+        const page = document.pages.find((entry) => entry.id === pageId);
+        if (!page) {
+          return false;
+        }
+        const found = findNodeAndParent(page.root, nodeId);
+        return found?.parent !== null;
       });
+      if (deletable.length === 1) {
+        nodeActions.deleteNode(deletable[0]!);
+      } else if (deletable.length > 1) {
+        nodeActions.deleteNodes(deletable);
+      }
       return;
-    }
-
-    if (action === "redo") {
-      runHistoryAction((currentSession) => {
-        currentSession.redo();
-      });
-      return;
-    }
-
-    if (action === "delete" && selectedNodeId && !isPageRoot) {
-      nodeActions.deleteNode(selectedNodeId);
     }
   };
 
@@ -474,9 +468,9 @@ export function Canvas({
               alone is genuinely ambiguous. The badge sits above the box and
               falls back to the component type when the node is unnamed.
             */}
-            {overlayStyle ? (
-              <div aria-hidden="true" style={overlayStyle}>
-                {selectedFound ? (
+            {overlayStyles.map((style, index) => (
+              <div key={selectedNodeIds[index] ?? index} aria-hidden="true" style={style}>
+                {index === 0 && selectedFound ? (
                   <span
                     style={{
                       position: "absolute",
@@ -494,11 +488,13 @@ export function Canvas({
                       pointerEvents: "none",
                     }}
                   >
-                    {selectedFound.node.name ?? selectedFound.node.type}
+                    {selectedNodeIds.length > 1
+                      ? `${selectedNodeIds.length} selected`
+                      : (selectedFound.node.name ?? selectedFound.node.type)}
                   </span>
                 ) : null}
               </div>
-            ) : null}
+            ))}
             {dropOverlayStyle ? <div aria-hidden="true" style={dropOverlayStyle} /> : null}
           </div>
         </ContextMenuTrigger>

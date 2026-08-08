@@ -6,7 +6,7 @@ import {
   validateAgainstRegistry,
   validateDocumentStructure,
 } from "@/builder/document/validate";
-import type { BuilderDocument, BuilderNode, ValidationResult } from "@/builder/document/types";
+import type { BuilderDocument, BuilderNode, BuilderPage, ValidationResult } from "@/builder/document/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import type { RenderTarget } from "@/builder/renderer/types";
 import { createRenderer } from "@/builder/renderer/renderer";
@@ -73,17 +73,47 @@ export function getProfileHeaderBio(document: BuilderDocument): string {
   return typeof node.props.bio === "string" ? node.props.bio : "";
 }
 
-function renderResponsive(
+export function normalizePagePath(path: string): string {
+  const trimmed = path.trim();
+  if (trimmed === "" || trimmed === "/") {
+    return "/";
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+/** Resolves a page from URL path segments. Root (`/`) falls back to the index page. */
+export function resolvePageByPath(
+  document: BuilderDocument,
+  pathSegments?: readonly string[],
+): BuilderPage | undefined {
+  const requestPath =
+    !pathSegments || pathSegments.length === 0 ? "/" : `/${pathSegments.join("/")}`;
+
+  const exact = document.pages.find(
+    (page) => normalizePagePath(page.path) === requestPath,
+  );
+  if (exact) {
+    return exact;
+  }
+
+  if (requestPath === "/") {
+    return (
+      document.pages.find((page) => normalizePagePath(page.path) === "/") ??
+      document.pages[0]
+    );
+  }
+
+  return undefined;
+}
+
+function renderResponsivePage(
   document: BuilderDocument,
   registry: ComponentRegistry,
   target: RenderTarget,
+  page: BuilderPage,
 ): ReactElement {
-  // Base styles are resolved inline (mobile-first default); sm/md/lg
-  // overrides ship as real @media rules so a visitor's own browser
-  // adapts to their actual viewport width, not a single server-picked
-  // breakpoint.
   const renderer = createStyledRenderer(createRenderer(), "base");
-  const tree = renderer.renderDocument(document, { registry, target });
+  const tree = renderer.renderPage(page, { registry, target });
   const stylesheet = buildResponsiveStylesheet(document);
 
   return (
@@ -94,11 +124,25 @@ function renderResponsive(
   );
 }
 
+function renderResponsive(
+  document: BuilderDocument,
+  registry: ComponentRegistry,
+  target: RenderTarget,
+  pathSegments?: readonly string[],
+): ReactElement {
+  const page = resolvePageByPath(document, pathSegments);
+  if (!page) {
+    throw new Error("Page not found.");
+  }
+  return renderResponsivePage(document, registry, target, page);
+}
+
 export function renderPublished(
   document: BuilderDocument,
   registry: ComponentRegistry,
+  pathSegments?: readonly string[],
 ): ReactElement {
-  return renderResponsive(document, registry, "published-webview");
+  return renderResponsive(document, registry, "published-webview", pathSegments);
 }
 
 /**
@@ -112,8 +156,9 @@ export function renderPublished(
 export function renderEmbedded(
   document: BuilderDocument,
   registry: ComponentRegistry,
+  pathSegments?: readonly string[],
 ): ReactElement {
-  return renderResponsive(document, registry, "embedded-crm");
+  return renderResponsive(document, registry, "embedded-crm", pathSegments);
 }
 
 export function findNodeParentId(

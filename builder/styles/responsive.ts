@@ -43,9 +43,18 @@ function sanitizeSelectorId(id: string): string {
   return id.replace(/["'\\<>{};]/g, "");
 }
 
+function sanitizeCssValueForDeclaration(value: string | number): string {
+  const sanitized = sanitizeCssValue(value).trim();
+  // Strip user-supplied !important so we don't emit "... !important !important".
+  return sanitized.replace(/\s*!important\s*$/i, "");
+}
+
 function declarationToCss(declaration: ResolvedStyleDeclaration): string {
   return Object.entries(declaration)
-    .map(([property, value]) => `${camelToKebab(property)}:${sanitizeCssValue(value)}`)
+    .map(
+      ([property, value]) =>
+        `${camelToKebab(property)}:${sanitizeCssValueForDeclaration(value)} !important`,
+    )
     .join(";");
 }
 

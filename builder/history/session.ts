@@ -8,6 +8,8 @@ export interface EditorSession {
   execute(command: Command): CommandApplyResult;
   undo(): BuilderDocument | undefined;
   redo(): BuilderDocument | undefined;
+  canUndo(): boolean;
+  canRedo(): boolean;
   readonly history: History;
 }
 
@@ -57,6 +59,14 @@ export function createEditorSession(
       }
       document = result.result.document;
       return document;
+    },
+
+    canUndo(): boolean {
+      return history.canUndo();
+    },
+
+    canRedo(): boolean {
+      return history.canRedo();
     },
 
     history,

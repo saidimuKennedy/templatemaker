@@ -42,6 +42,7 @@ export function validateDocumentStructure(project: BuilderProject): ValidationRe
   }
 
   const seenPageIds = new Map<string, string>();
+  const seenPagePaths = new Map<string, string>();
   const seenNodeIds = new Map<string, string>();
 
   (project.pages ?? []).forEach((page, i) => {
@@ -55,6 +56,17 @@ export function validateDocumentStructure(project: BuilderProject): ValidationRe
       } else {
         seenPageIds.set(page.id, path);
       }
+    }
+    const normalizedPath = page.path?.trim() ? page.path.trim() : "/";
+    const pathKey = normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
+    const existingPath = seenPagePaths.get(pathKey);
+    if (existingPath) {
+      errors.push({
+        path: `${path}.path`,
+        message: `Duplicate page path "${pathKey}" (first seen at ${existingPath}).`,
+      });
+    } else {
+      seenPagePaths.set(pathKey, `${path}.path`);
     }
     if (!page.root) {
       errors.push({ path: `${path}.root`, message: "Page is missing a root node." });

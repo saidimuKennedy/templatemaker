@@ -1,22 +1,22 @@
 # v1 Completion Sign-off
 
-**Date:** 2026-08-08  
-**Verifier:** Plan 17 automated + manual verification pass  
+**Date:** 2026-08-08 (Plan 17 baseline); **Plan 23 re-verification:** 2026-08-08  
+**Verifier:** Plan 17 automated + manual verification pass; Plan 23 responsive cascade fix re-check  
 **Fixture:** Portfolio `mcspgmfhb3cxb4jm` (“Silence Studio”, slug `silence-studio-mNT1-k`, 100 nodes, max depth 6 from `page-root`)
 
 ## Executive summary
 
 **v1 is not fully complete against its documented success criteria.**
 
-Two of three success criteria are met. **Success criterion 1 is not met:** the reference WhatsApp-style page was seeded programmatically (not built through the editor UI), and published output does **not** respond to real browser width for breakpoint overrides — `@media` rules from `buildResponsiveStylesheet` are emitted but lose to inline `style` attributes (verified: `hero-heading` stays `64px` at a 1280px viewport despite a `@media (min-width:1024px){font-size:140px}` rule).
+Two of three success criteria are met. **Success criterion 1 is partially met:** published and embed output **now responds to real browser width** for breakpoint overrides (Plan 23 — `@media` declarations emit `!important` so they beat inline base styles). **The remaining gap:** the reference WhatsApp-style page was seeded programmatically (`scripts/seed-dogfood-portfolio.tsx`), not built through the editor UI — that half of criterion 1 is unchanged by Plan 23.
 
-All five roadmap **phases** are implemented at the engine and editor level. Automated checks match the Plan 17 baseline. Manual browser verification (Playwright, authenticated session against `http://localhost:3000`) confirmed editor canvas, selection, sibling drag-and-drop, undo, viewport toggle, and publish/embed/export UI. Several known gaps remain (no E2E, no Navigator drag-to-reorder, Plan 22 visual checks unconfirmed).
+All five roadmap **phases** are implemented at the engine and editor level. Automated checks pass (32 tests after Plan 23). Manual browser verification (Playwright, `http://localhost:3000`) confirmed published/embed responsive behavior, editor canvas viewport toggle (unchanged), and prior Plan 17 editor checks.
 
 ---
 
 ## Automated verification
 
-Run from repo root on 2026-08-08.
+Run from repo root on 2026-08-08 (Plan 23 re-run).
 
 ### `npx tsc --noEmit`
 
@@ -30,17 +30,17 @@ Run from repo root on 2026-08-08.
 
 ```
  Test Files  11 passed (11)
-      Tests  30 passed (30)
-   Duration  831ms
+      Tests  32 passed (32)
+   Duration  ~830ms
 ```
 
-**Result:** Matches baseline (30 tests passing).
+**Result:** Plan 17 baseline was 30 tests; Plan 23 adds 2 string-level tests in `builder/styles/responsive.test.ts` (`!important` emission, order preservation, no double-`!important`).
 
 Also run with dead database URL — still passes:
 
 ```
 DATABASE_URL="postgresql://invalid:invalid@127.0.0.1:1/nope" npm test
-→ 11 files, 30 tests passed
+→ 11 files, 32 tests passed
 ```
 
 ### `npm run lint`
@@ -122,13 +122,13 @@ Routes: /, /dashboard, /editor/[id], /embed/[slug], /p/[slug], …
 
 ## Success criteria
 
-### 1. Build a responsive WhatsApp webview visually — **Not met**
+### 1. Build a responsive WhatsApp webview visually — **Partially met**
 
 | Check | Result | Evidence |
 |-------|--------|----------|
 | Built visually through editor UI | **Not met** | Reference page “Silence Studio” was written by `scripts/seed-dogfood-portfolio.tsx` (programmatic node tree), not assembled by clicking in the editor. Script header: *“seed a real Portfolio row's content with the ‘Silence Studio’ dogfood document”*. |
-| Editor viewport simulation | **Met** | Browser: Mobile toggle → canvas wrapper `max-width: 390px`; Desktop toggle → `max-width: 100%` (`Canvas.tsx:41-46`, `VIEWPORT_MAX_WIDTH`). |
-| Published page responds to real browser width | **Not met** | `@media` rules are emitted (`builder/styles/responsive.ts:70-73`, injected in `lib/builder/content.tsx:87-91`). Published HTML contains `@media (min-width:1024px){[data-node-id="hero-heading"]{font-size:140px}}`. **But** at viewport 1280×900, Playwright measured `hero-heading` computed `font-size: 64px` (same as 375px mobile). Inline `style="font-size:64px"` on the element outranks the stylesheet rule. Breakpoint overrides that duplicate base inline properties do not take effect on `/p/[slug]`. |
+| Editor viewport simulation | **Met** | Browser (Plan 23): Desktop toggle → `hero-heading` computed `font-size: 140px`; Mobile toggle → `64px` (dogfood clone portfolio `plan23-editor-test`, same node styles). Canvas uses `createStyledRenderer(..., viewport)` — unchanged by Plan 23. |
+| Published page responds to real browser width | **Met** (Plan 23) | `@media` rules now emit `!important` (`builder/styles/responsive.ts` — `declarationToCss`). Playwright at `http://localhost:3000/p/silence-studio-mNT1-k`: viewport **1280×900** → `hero-heading` **140px**; viewport **375×900** → **64px**. Base-only property (`color`) unchanged at both widths: **rgb(10, 10, 10)**. Embed path (`renderEmbedded` → `renderResponsive`) verified: **140px** at 1280px on `/embed/silence-studio-mNT1-k`. |
 
 ### 2. Publish without writing code — **Met**
 
@@ -177,7 +177,12 @@ No files under `builder/document/`, `builder/registry/` (core), `builder/rendere
 | Mobile / Desktop toggle | Canvas max-width `390px` ↔ `100%` |
 | Select `hero-heading` | Inspector populated |
 | Drag `scroll-hint` before `hero-heading` | Sibling order swapped; Ctrl+Z reverted |
-| Published page at 375px vs 1280px | Both: `hero-heading` font-size **64px** (lg override ineffective) |
+| Published page at 375px vs 1280px (Plan 17) | Both: `hero-heading` font-size **64px** (lg override ineffective — fixed in Plan 23) |
+| **Plan 23 — `/p/silence-studio-mNT1-k` at 1280px** | `hero-heading` computed `font-size`: **140px** |
+| **Plan 23 — same page at 375px** | `hero-heading` computed `font-size`: **64px** |
+| **Plan 23 — base-only `color` at 1280px / 375px** | Both: **rgb(10, 10, 10)** (unchanged) |
+| **Plan 23 — `/embed/silence-studio-mNT1-k` at 1280px** | `hero-heading` computed `font-size`: **140px** |
+| **Plan 23 — editor canvas (dogfood clone, Mobile/Desktop toggle)** | Desktop: **140px**; Mobile: **64px** (editor path unchanged) |
 | `/embed/silence-studio-mNT1-k` | HTTP 200, content rendered |
 | Toolbar | Save, Unpublish, Copy embed, Export JSON buttons visible |
 
@@ -198,7 +203,7 @@ From Plans 21–22 (inserted after v1):
 
 - **Navigator drag-to-reorder is unbuilt** — `docs/plans/README.md:211`; canvas drag exists, Navigator is select-only (`components/editor/Navigator.tsx`).
 - **Plan 22's eleven visual acceptance checks were never confirmed** — no plan file lists them; status recorded in `docs/plans/README.md:212` only.
-- **Published responsive stylesheet vs inline styles** — newly observed during this sign-off (see Success criterion 1). `@media` rules exist but do not override properties already set inline at the `base` breakpoint.
+- **Published responsive cascade (Plan 17 issue — fixed Plan 23)** — breakpoint `@media` rules now use `!important` so they override inline base styles without moving base into the stylesheet (which would let component defaults beat user styles). **Deferred to v2:** components still inline their own defaults (e.g. Section `padding` prop); a unified non-inline style cascade would require a broader refactor.
 
 Updated from Plan 17 (no longer accurate):
 
@@ -208,7 +213,7 @@ Updated from Plan 17 (no longer accurate):
 
 ## Issues found during verification (not fixed in this plan)
 
-1. **Published breakpoint overrides ineffective when base styles are inline** — `hero-heading` lg `font-size: 140px` rule present in `<style>` but computed size stays 64px at 1280px viewport because inline styles win. Affects any property set at `base` and overridden at sm/md/lg.
+1. ~~**Published breakpoint overrides ineffective when base styles are inline**~~ — **Fixed in Plan 23.** `@media` declarations now carry `!important`; measured 140px at 1280px / 64px at 375px on `/p/silence-studio-mNT1-k`.
 2. **Reference v1 demo page is seed-script-authored** — undermines “build visually” claim for criterion 1; editor can edit the seeded page but did not author it.
 
 ---
@@ -218,9 +223,9 @@ Updated from Plan 17 (no longer accurate):
 | Scope | Verdict |
 |-------|---------|
 | Roadmap phases 1–5 (implementation) | **Complete** — all items implemented with evidence above |
-| Automated quality gate | **Pass** — tsc, 30 tests, lint (0 errors), build |
-| Success criteria (product bar) | **Incomplete** — criterion 1 **Not met** (seeded page + published responsive broken for inline-overridden properties); criteria 2–3 **Met** |
+| Automated quality gate | **Pass** — tsc, 32 tests, lint (0 errors), build |
+| Success criteria (product bar) | **Incomplete** — criterion 1 **partially met** (published responsive **Met** after Plan 23; “built visually through UI” still **Not met**); criteria 2–3 **Met** |
 
-v1 engine and editor shell work is landed and test-covered at the unit level. The product-level bar in `docs/06-development-roadmap.md` is **not** fully satisfied until published pages actually respond to viewport width and a reference page is demonstrably authored through the UI.
+v1 engine and editor shell work is landed and test-covered at the unit level. The product-level bar in `docs/06-development-roadmap.md` is **not** fully satisfied until a reference page is demonstrably authored through the UI (seed-script caveat remains).
 
 See `docs/06-development-roadmap.md` for phase status links.

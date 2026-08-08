@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { serializeDocument } from "@/builder/document/serialize";
+import { createDefaultDocument } from "./seed";
 import {
-  createDefaultDocument,
   createPortfolioRegistry,
+  normalizePagePath,
   parseBuilderContent,
+  resolvePageByPath,
   validatePortfolioDocument,
 } from "./index";
 
@@ -68,5 +70,28 @@ describe("lib/builder document adapter & seed templates", () => {
         `parseBuilderContent returns undefined for ${String(invalid)}`,
       );
     }
+  });
+});
+
+describe("resolvePageByPath", () => {
+  it("resolves the index page at root and distinct paths for additional pages", () => {
+    const document = createDefaultDocument("executive", "proj-routing");
+    const home = document.pages[0]!;
+    const about = {
+      ...home,
+      id: "page-about",
+      name: "About",
+      path: "/about",
+    };
+    const multiPage = {
+      ...document,
+      pages: [home, about],
+    };
+
+    expect(normalizePagePath("/")).toBe("/");
+    expect(resolvePageByPath(multiPage)?.id).toBe(home.id);
+    expect(resolvePageByPath(multiPage, [])?.id).toBe(home.id);
+    expect(resolvePageByPath(multiPage, ["about"])?.id).toBe(about.id);
+    expect(resolvePageByPath(multiPage, ["missing"])).toBeUndefined();
   });
 });

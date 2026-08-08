@@ -69,6 +69,16 @@ first for that reason.
   `animations` field, and `schemaVersion` moves to `2` for new
   documents. `schemaVersion: 1` documents must continue to load and
   render unchanged — there is real data in the database.
+
+  > **Superseded in part by
+  > [ADR-008](./ADR-008-additive-document-evolution.md) (2026-08-08):**
+  > the optional `animations` field stands, but `schemaVersion` does
+  > **not** move to `2`. ADR-008 establishes that contract changes are
+  > additive and optional and that `schemaVersion` is provenance, never
+  > branched on — so an optional field needs no version bump and no
+  > migration. The requirement that existing documents keep loading
+  > unchanged is unaffected, and is in fact what ADR-008 guarantees by
+  > construction.
 - AI introduces the project's first paid, network-dependent, and
   non-deterministic runtime dependency. Tests must remain runnable with
   no API key and no network.
