@@ -238,6 +238,8 @@ export function Toaster() {
   );
 }
 
+export type { ToastProps, ToastActionElement };
+
 export {
   ToastProvider,
   ToastViewport,

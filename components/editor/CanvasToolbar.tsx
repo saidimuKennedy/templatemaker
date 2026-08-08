@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Toolbox } from "@/components/editor/Toolbox";
 import { ViewportToggle } from "@/components/editor/ViewportToggle";
+import { AIPanel } from "@/components/editor/AIPanel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,7 +16,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { ToastActionElement } from "@/components/ui/toast";
 import type { ComponentRegistry } from "@/builder/registry/types";
+import type { BuilderDocument } from "@/builder/document/types";
+import type { EditorSession } from "@/builder/history/session";
 import type { Breakpoint } from "@/builder/styles/types";
 import { ChevronDown, ChevronUp, Copy, Download, EyeOff, Plus, Redo2, Save, Undo2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +43,15 @@ function ToolbarTooltip({ label, children }: { label: string; children: ReactNod
 
 type CanvasToolbarProps = {
   readonly registry: ComponentRegistry;
+  readonly portfolioId: string;
+  readonly session: EditorSession;
+  readonly onDocumentChange: () => void;
+  readonly onRevertSnapshot: (snapshot: BuilderDocument) => void;
+  readonly toast: (options: {
+    title: string;
+    description?: string;
+    action?: ToastActionElement;
+  }) => { id: string; dismiss: () => void };
   readonly onAdd: (componentType: string) => void;
   readonly viewport: Breakpoint;
   readonly onViewportChange: (value: Breakpoint) => void;
@@ -58,6 +71,11 @@ type CanvasToolbarProps = {
 
 export function CanvasToolbar({
   registry,
+  portfolioId,
+  session,
+  onDocumentChange,
+  onRevertSnapshot,
+  toast,
   onAdd,
   viewport,
   onViewportChange,
@@ -133,6 +151,16 @@ export function CanvasToolbar({
                 <Toolbox registry={registry} onAdd={handleAdd} variant="compact" />
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <ToolbarDivider />
+
+            <AIPanel
+              portfolioId={portfolioId}
+              session={session}
+              onDocumentChange={onDocumentChange}
+              onRevertSnapshot={onRevertSnapshot}
+              toast={toast}
+            />
 
             <ToolbarDivider />
 

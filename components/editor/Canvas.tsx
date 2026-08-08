@@ -38,6 +38,9 @@ import {
  */
 const SELECTION_COLOR = "#2563eb";
 
+const EMPTY_NODE_IDS: readonly string[] = [];
+const EMPTY_OVERLAY_STYLES: CSSProperties[] = [];
+
 const VIEWPORT_MAX_WIDTH: Record<Breakpoint, string> = {
   base: "390px",
   sm: "640px",
@@ -92,7 +95,8 @@ export function Canvas({
     });
   }, [document, documentVersion, pageId, registry, styledRenderer]);
 
-  const selectedNodeIds = canvasState.selection?.selectedNodeIds ?? [];
+  const selectedNodeIds = canvasState.selection?.selectedNodeIds ?? EMPTY_NODE_IDS;
+  const selectedNodeIdsKey = selectedNodeIds.join(",");
   const selectedNodeId = selectedNodeIds[0] ?? null;
 
   const selectedFound = useMemo(() => {
@@ -119,7 +123,7 @@ export function Canvas({
   useEffect(() => {
     const updateOverlays = () => {
       if (selectedNodeIds.length === 0 || !containerRef.current) {
-        setOverlayStyles([]);
+        setOverlayStyles((current) => (current.length === 0 ? current : EMPTY_OVERLAY_STYLES));
         return;
       }
       const containerRect = containerRef.current.getBoundingClientRect();
@@ -147,11 +151,16 @@ export function Canvas({
 
     updateOverlays();
 
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
     const observer = new ResizeObserver(updateOverlays);
-    observer.observe(containerRef.current!);
+    observer.observe(container);
 
     for (const nodeId of selectedNodeIds) {
-      const element = containerRef.current?.querySelector(`[data-node-id="${nodeId}"]`);
+      const element = container.querySelector(`[data-node-id="${nodeId}"]`);
       if (element) {
         observer.observe(element);
       }
@@ -162,7 +171,7 @@ export function Canvas({
       observer.disconnect();
       window.removeEventListener("resize", updateOverlays);
     };
-  }, [selectedNodeIds, documentVersion, viewport]);
+  }, [selectedNodeIdsKey, documentVersion, viewport]);
 
   // Every rendered node is a candidate drag source except the page root
   // (moving a page's own root is rejected by applyMoveNode anyway). Stamped

@@ -22,6 +22,7 @@ import { findNodeAndParent } from "@/builder/document/tree";
 import { generateNodeId } from "@/builder/document/id";
 import type { BuilderDocument, PageId } from "@/builder/document/types";
 import { createEditorSession } from "@/builder/history/session";
+import type { EditorSession } from "@/builder/history/session";
 import { createCompositeCommand } from "@/builder/history/composite";
 import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
@@ -121,7 +122,7 @@ type EditorClientProps = {
 
 export function EditorClient({ portfolioId, initialDocument, status, slug }: EditorClientProps) {
   const registry = createPortfolioRegistry();
-  const [session] = useState(() => createEditorSession(initialDocument));
+  const [session, setSession] = useState<EditorSession>(() => createEditorSession(initialDocument));
   const skipAutosaveRef = useRef(true);
   const [currentPageId, setCurrentPageId] = useState<PageId>(
     () => initialDocument.pages[0]?.id ?? "",
@@ -258,6 +259,15 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
     }, 2000);
     return () => window.clearTimeout(timer);
   }, [documentVersion, handleSave]);
+
+  const handleRevertSnapshot = useCallback(
+    (snapshot: BuilderDocument) => {
+      setSession(createEditorSession(snapshot));
+      setCanvasState(initialCanvasState);
+      bumpDocumentVersion();
+    },
+    [bumpDocumentVersion],
+  );
 
   const handleCommand = useCallback(
     (command: Command) => {
@@ -556,6 +566,11 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       />
       <CanvasToolbar
         registry={registry}
+        portfolioId={portfolioId}
+        session={session}
+        onDocumentChange={bumpDocumentVersion}
+        onRevertSnapshot={handleRevertSnapshot}
+        toast={toast}
         onAdd={handleAddComponent}
         viewport={viewport}
         onViewportChange={setViewport}

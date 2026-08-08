@@ -129,7 +129,7 @@ plan's Acceptance Criteria).
 | 14 | [v1 Correctness Pass](./14-v1-correctness-pass.md) | `builder/components/*`, `builder/plugins/portfolio/*`, `builder/canvas/duplicate.ts`, `builder/registry/types.ts` | — | 13, 15, 16 |
 | 15 | [Publish Surfacing](./15-publish-surfacing.md) | `app/embed/[slug]/`, `components/editor/EditorClient.tsx` | 05 (done) | 13, 14, 16 |
 | 16 | [Test Harness](./16-test-harness.md) | `vitest.config.ts`, all `*/smoke.ts` → `*.test.ts`, `scripts/` | — | 13, 14, 15 (touches `package.json`) |
-| 17 | [v1 Sign-off](./17-v1-signoff.md) | `docs/V1-COMPLETION.md`, `docs/06-development-roadmap.md` | 13, 14, 15, 16 **verified** | — |
+| 17 | [v1 Sign-off](./17-v1-signoff.md) | `docs/V1-COMPLETION.md`, `docs/06-development-roadmap.md` | 13, 14, 15, 16 **verified** | **Done** — see [V1-COMPLETION.md](../V1-COMPLETION.md). The sign-off is complete; its verdict is that phases 1–5 are implemented but the product bar is not fully met |
 
 Plans 13–16 are largely disjoint by directory and can run concurrently.
 Two coordination notes: Plan 14's item 1 (duplication) edits

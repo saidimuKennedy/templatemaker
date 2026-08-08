@@ -216,6 +216,14 @@ Updated from Plan 17 (no longer accurate):
 1. ~~**Published breakpoint overrides ineffective when base styles are inline**~~ — **Fixed in Plan 23.** `@media` declarations now carry `!important`; measured 140px at 1280px / 64px at 375px on `/p/silence-studio-mNT1-k`.
 2. **Reference v1 demo page is seed-script-authored** — undermines “build visually” claim for criterion 1; editor can edit the seeded page but did not author it.
 
+   > **Accepted and deferred (2026-08-08), not open work.** The primary
+   > authoring path is AI generation (Plan 19), so a human assembling a
+   > page node-by-node is not the bar the product is aiming at. The
+   > editor's role is refining generated output. This finding stands as
+   > an accurate record of what was verified; it is not a task queue
+   > item. See `docs/06-development-roadmap.md` for the decision and its
+   > consequences for plan sequencing.
+
 ---
 
 ## Sign-off statement

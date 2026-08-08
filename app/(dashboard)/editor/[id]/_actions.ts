@@ -2,9 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createOpenAICompatibleProvider } from "@/builder/ai/openai-compatible-provider";
+import type { AIProvider } from "@/builder/ai/types";
+import type { ComponentRegistry } from "@/builder/registry/types";
 import { publish as publishDocument } from "@/builder/publish/publish";
 import { deserializeDocument } from "@/builder/document/serialize";
 import type { BuilderDocument, ValidationError } from "@/builder/document/types";
+import type { Command } from "@/builder/history/types";
 import { getSession } from "@/lib/auth";
 import {
   createPortfolioRegistry,
@@ -13,6 +17,7 @@ import {
   parseBuilderContent,
   validatePortfolioDocument,
 } from "@/lib/builder";
+import { AI_RATE_LIMITS, checkAIRateLimit, recordAIRequest } from "@/lib/ai/rate-limit";
 import { prisma } from "@/lib/db";
 import { generateSlug } from "@/lib/slug";
 
@@ -58,6 +63,54 @@ function revalidatePublicRoutes(slug: string, document?: BuilderDocument): void 
     revalidatePath(`/p/${slug}${suffix}`);
     revalidatePath(`/embed/${slug}${suffix}`);
   }
+}
+
+type ResolvedProvider =
+  | { ok: true; provider: AIProvider }
+  | { ok: false; error: string };
+
+/**
+ * Builds the AI provider from configuration alone.
+ *
+ * Vendor choice is three environment variables, not a code path: point
+ * `AI_BASE_URL` at any OpenAI-compatible endpoint (DeepSeek, Groq,
+ * Together, Fireworks, OpenRouter, Mistral, or a local vLLM/Ollama) and
+ * nothing here changes. That is the point — ADR-005 asks for vendor
+ * neutrality, and an interface alone only delivers it at the code level,
+ * where adding a vendor still means writing an adapter.
+ *
+ * Reporting all three missing names at once is deliberate: configuring
+ * this wrong is the single likeliest failure, and discovering the
+ * variables one round-trip at a time is miserable.
+ */
+function resolveAIProvider(registry: ComponentRegistry): ResolvedProvider {
+  const baseURL = process.env.AI_BASE_URL;
+  const apiKey = process.env.AI_API_KEY;
+  const modelId = process.env.AI_MODEL;
+
+  const missing = [
+    !baseURL && "AI_BASE_URL",
+    !apiKey && "AI_API_KEY",
+    !modelId && "AI_MODEL",
+  ].filter((entry): entry is string => Boolean(entry));
+
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      error: `AI generation is not configured. Missing: ${missing.join(", ")}. See .env.example.`,
+    };
+  }
+
+  return {
+    ok: true,
+    provider: createOpenAICompatibleProvider({
+      baseURL: baseURL!,
+      apiKey: apiKey!,
+      modelId: modelId!,
+      registry,
+      name: process.env.AI_PROVIDER_NAME || "openai-compatible",
+    }),
+  };
 }
 
 async function requireOwnedPortfolio(portfolioId: string) {
@@ -183,4 +236,64 @@ export async function deletePortfolio(portfolioId: string) {
 
   await prisma.portfolio.delete({ where: { id: portfolioId } });
   redirect("/dashboard");
+}
+
+type GenerateFromPromptResult =
+  | { success: true; commands: readonly Command[] }
+  | { success: false; error: string };
+
+export async function generateFromPrompt(
+  portfolioId: string,
+  prompt: string,
+  documentJson: string,
+): Promise<GenerateFromPromptResult> {
+  const { user } = await requireOwnedPortfolio(portfolioId);
+
+  const trimmed = prompt.trim();
+  if (trimmed.length === 0) {
+    return { success: false, error: "Prompt cannot be empty." };
+  }
+  if (trimmed.length > AI_RATE_LIMITS.maxPromptLength) {
+    return {
+      success: false,
+      error: `Prompt exceeds ${AI_RATE_LIMITS.maxPromptLength} characters.`,
+    };
+  }
+
+  const rateLimit = checkAIRateLimit(user.id);
+  if (!rateLimit.allowed) {
+    const retryMinutes = Math.ceil(rateLimit.retryAfterMs / 60_000);
+    const message =
+      rateLimit.reason === "interval"
+        ? `Please wait ${Math.ceil(rateLimit.retryAfterMs / 1000)} seconds before generating again.`
+        : `Rate limit reached (${AI_RATE_LIMITS.maxRequestsPerHour}/hour). Try again in ~${retryMinutes} minute(s).`;
+    return { success: false, error: message };
+  }
+
+  const registry = createPortfolioRegistry();
+  const resolved = resolveAIProvider(registry);
+  if (!resolved.ok) {
+    recordAIRequest(user.id);
+    return { success: false, error: resolved.error };
+  }
+
+  let document: BuilderDocument;
+  try {
+    document = deserializeDocument(documentJson);
+  } catch {
+    return { success: false, error: "Document could not be parsed." };
+  }
+
+  const provider = resolved.provider;
+
+  try {
+    const result = await provider.generate({ prompt: trimmed, document });
+    recordAIRequest(user.id);
+    return { success: true, commands: result.commands };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "AI generation failed.",
+    };
+  }
 }
