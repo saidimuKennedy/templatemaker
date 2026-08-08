@@ -7,18 +7,16 @@ import {
   unpublishPortfolio,
 } from "@/app/(dashboard)/editor/[id]/_actions";
 import { Canvas, initialCanvasState } from "@/components/editor/Canvas";
+import { CanvasToolbar } from "@/components/editor/CanvasToolbar";
 import { Inspector } from "@/components/editor/Inspector";
+import type { NodeActionState, NodeActions } from "@/components/editor/NodeActionsMenu";
 import { Navigator } from "@/components/editor/Navigator";
 import { Toolbox } from "@/components/editor/Toolbox";
-import { ViewportToggle } from "@/components/editor/ViewportToggle";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
+import { resolveDropCommand } from "@/builder/canvas/drag";
+import { resolveDuplicateCommand } from "@/builder/canvas/duplicate";
+import { clearSelection } from "@/builder/canvas/selection";
 import { findNodeAndParent } from "@/builder/document/tree";
 import { generateNodeId } from "@/builder/document/id";
 import type { BuilderDocument } from "@/builder/document/types";
@@ -27,17 +25,90 @@ import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
 import type { Breakpoint } from "@/builder/styles/types";
 import { createPortfolioRegistry } from "@/lib/builder";
-import {
-  Copy,
-  Download,
-  Eye,
-  EyeOff,
-  Monitor,
-  Plus,
-  Save,
-  Smartphone,
-  Upload,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const NAVIGATOR_WIDTH_KEY = "editor-navigator-width";
+const INSPECTOR_WIDTH_KEY = "editor-inspector-width";
+const DEFAULT_NAVIGATOR_WIDTH = 280;
+const DEFAULT_INSPECTOR_WIDTH = 300;
+const MIN_PANEL_WIDTH = 180;
+const MAX_PANEL_WIDTH = 480;
+
+function clampPanelWidth(width: number): number {
+  return Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, width));
+}
+
+function readStoredWidth(key: string, fallback: number): number {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+  const stored = window.localStorage.getItem(key);
+  if (!stored) {
+    return fallback;
+  }
+  const parsed = Number.parseInt(stored, 10);
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+  return clampPanelWidth(parsed);
+}
+
+type PanelResizeHandleProps = {
+  readonly side: "navigator" | "inspector";
+  readonly onResize: (deltaX: number) => void;
+  readonly onResizeEnd: () => void;
+};
+
+function PanelResizeHandle({ side, onResize, onResizeEnd }: PanelResizeHandleProps) {
+  const draggingRef = useRef(false);
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!draggingRef.current) {
+        return;
+      }
+      const delta = side === "navigator" ? event.movementX : -event.movementX;
+      onResize(delta);
+    };
+
+    const handleMouseUp = () => {
+      if (!draggingRef.current) {
+        return;
+      }
+      draggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      onResizeEnd();
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [onResize, onResizeEnd, side]);
+
+  const handleMouseDown = (event: React.MouseEvent) => {
+    event.preventDefault();
+    draggingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={side === "navigator" ? "Resize navigator panel" : "Resize inspector panel"}
+      className={cn(
+        "absolute top-0 bottom-0 z-10 w-1.5 cursor-col-resize touch-none transition-colors hover:bg-primary/25 active:bg-primary/40",
+        side === "navigator" ? "right-0 -mr-0.5" : "left-0 -ml-0.5",
+      )}
+      onMouseDown={handleMouseDown}
+    />
+  );
+}
 
 type EditorClientProps = {
   portfolioId: string;
@@ -53,12 +124,31 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   const [documentVersion, setDocumentVersion] = useState(0);
   const [canvasState, setCanvasState] = useState(initialCanvasState);
   const [viewport, setViewport] = useState<Breakpoint>("lg");
-  const [isToolboxOpen, setIsToolboxOpen] = useState(false);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [navigatorWidth, setNavigatorWidth] = useState(DEFAULT_NAVIGATOR_WIDTH);
+  const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const pageId = initialDocument.pages[0]?.id ?? "";
   const selectedNodeId = canvasState.selection?.selectedNodeIds[0] ?? null;
+
+  // SSR trap: localStorage is read after mount so server and first client
+  // render share the same default widths — reading during render causes
+  // a hydration mismatch.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional post-mount hydration from localStorage
+    setNavigatorWidth(readStoredWidth(NAVIGATOR_WIDTH_KEY, DEFAULT_NAVIGATOR_WIDTH));
+    setInspectorWidth(readStoredWidth(INSPECTOR_WIDTH_KEY, DEFAULT_INSPECTOR_WIDTH));
+  }, []);
+
+  const persistNavigatorWidth = useCallback(() => {
+    window.localStorage.setItem(NAVIGATOR_WIDTH_KEY, String(navigatorWidth));
+  }, [navigatorWidth]);
+
+  const persistInspectorWidth = useCallback(() => {
+    window.localStorage.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidth));
+  }, [inspectorWidth]);
 
   const bumpDocumentVersion = useCallback(() => {
     setDocumentVersion((current) => current + 1);
@@ -91,7 +181,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         }
       });
     },
-    [portfolioId, toast],
+    [portfolioId, session, toast],
   );
 
   useEffect(() => {
@@ -115,12 +205,102 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         bumpDocumentVersion();
       }
     },
-    [bumpDocumentVersion],
+    [bumpDocumentVersion, session],
   );
+
+  const getActionState = useCallback(
+    (nodeId: string): NodeActionState => {
+      const page = session.getDocument().pages.find((entry) => entry.id === pageId);
+      if (!page) {
+        return { isPageRoot: true, canMoveUp: false, canMoveDown: false };
+      }
+      const found = findNodeAndParent(page.root, nodeId);
+      if (!found) {
+        return { isPageRoot: true, canMoveUp: false, canMoveDown: false };
+      }
+      return {
+        isPageRoot: found.parent === null,
+        canMoveUp: Boolean(found.parent && found.index > 0),
+        canMoveDown: Boolean(
+          found.parent && found.index < found.parent.children.length - 1,
+        ),
+      };
+    },
+    [pageId, session, documentVersion],
+  );
+
+  const moveNode = useCallback(
+    (nodeId: string, direction: "up" | "down") => {
+      const document = session.getDocument();
+      const page = document.pages.find((entry) => entry.id === pageId);
+      if (!page) {
+        return;
+      }
+      const found = findNodeAndParent(page.root, nodeId);
+      if (!found?.parent) {
+        return;
+      }
+      const { parent, index } = found;
+      const siblingIndex = direction === "up" ? index - 1 : index + 1;
+      const sibling = parent.children[siblingIndex];
+      if (!sibling) {
+        return;
+      }
+      const dropTarget =
+        direction === "up"
+          ? { nodeId: sibling.id, position: "before" as const }
+          : { nodeId: sibling.id, position: "after" as const };
+      const command = resolveDropCommand(document, pageId, nodeId, dropTarget);
+      if (command) {
+        handleCommand(command);
+      }
+    },
+    [handleCommand, pageId, session, documentVersion],
+  );
+
+  const duplicateNode = useCallback(
+    (nodeId: string) => {
+      const state = getActionState(nodeId);
+      if (state.isPageRoot) {
+        return;
+      }
+      const command = resolveDuplicateCommand(session.getDocument(), pageId, nodeId);
+      if (command) {
+        handleCommand(command);
+      }
+    },
+    [getActionState, handleCommand, pageId, session, documentVersion],
+  );
+
+  const deleteNode = useCallback(
+    (nodeId: string) => {
+      const state = getActionState(nodeId);
+      if (state.isPageRoot) {
+        return;
+      }
+      handleCommand({
+        type: "DeleteNode",
+        payload: { pageId, nodeId },
+      });
+      setCanvasState((current) => clearSelection(current));
+    },
+    [getActionState, handleCommand, pageId],
+  );
+
+  const handleRenameNode = useCallback((nodeId: string) => {
+    setEditingNodeId(nodeId);
+  }, []);
+
+  const nodeActions: NodeActions = {
+    getActionState,
+    moveNode,
+    duplicateNode,
+    deleteNode,
+    onRename: handleRenameNode,
+  };
 
   const handleAddComponent = useCallback(
     (componentType: string) => {
-      setIsToolboxOpen(false);
       const definition = registry.get(componentType);
       if (!definition) {
         return;
@@ -168,7 +348,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         },
       });
     },
-    [handleCommand, registry, selectedNodeId, toast],
+    [handleCommand, registry, selectedNodeId, session, toast],
   );
 
   const handlePublish = () => {
@@ -240,87 +420,8 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   };
 
   const toolbar = (
-    <div className="mx-4 flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-2">
-        <DropdownMenu open={isToolboxOpen} onOpenChange={setIsToolboxOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 w-8 p-0"
-              aria-label="Add element"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-72 p-2 max-h-[32rem] overflow-y-auto">
-            <Toolbox registry={registry} onAdd={handleAddComponent} />
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <ViewportToggle value={viewport} onChange={setViewport} />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 w-8 p-0"
-          disabled={pending}
-          onClick={() => handleSave()}
-          aria-label="Save"
-        >
-          <Save className="h-4 w-4" />
-        </Button>
-        {status === "PUBLISHED" ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            disabled={pending}
-            onClick={handleUnpublish}
-            aria-label="Unpublish"
-          >
-            <EyeOff className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            className="h-8 w-8 p-0"
-            disabled={pending}
-            onClick={handlePublish}
-            aria-label="Publish"
-          >
-            <Upload className="h-4 w-4" />
-          </Button>
-        )}
-        {status === "PUBLISHED" && slug ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={handleCopyEmbedCode}
-            aria-label="Copy embed code"
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={handleExportJson}
-          aria-label="Export JSON"
-        >
-          <Download className="h-4 w-4" />
-        </Button>
-      </div>
+    <div className="mx-4 flex items-center py-0.5">
+      <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
     </div>
   );
 
@@ -343,31 +444,75 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       canvasState={canvasState}
       onCanvasStateChange={setCanvasState}
       onCommand={handleCommand}
+      nodeActions={nodeActions}
+      editingNodeId={editingNodeId}
+      onStartEdit={setEditingNodeId}
+      onEndEdit={() => setEditingNodeId(null)}
     />
   );
 
   const toolbox = <Toolbox registry={registry} onAdd={handleAddComponent} />;
 
   const canvas = (
-    <Canvas
-      session={session}
-      registry={registry}
-      pageId={pageId}
-      documentVersion={documentVersion}
-      canvasState={canvasState}
-      viewport={viewport}
-      onCanvasStateChange={setCanvasState}
-      onDocumentChange={bumpDocumentVersion}
-    />
+    <div className="relative h-full min-h-0">
+      <Canvas
+        session={session}
+        registry={registry}
+        pageId={pageId}
+        documentVersion={documentVersion}
+        canvasState={canvasState}
+        viewport={viewport}
+        onCanvasStateChange={setCanvasState}
+        onDocumentChange={bumpDocumentVersion}
+        nodeActions={nodeActions}
+      />
+      <CanvasToolbar
+        registry={registry}
+        onAdd={handleAddComponent}
+        viewport={viewport}
+        onViewportChange={setViewport}
+        pending={pending}
+        onSave={() => handleSave()}
+        status={status}
+        slug={slug}
+        onPublish={handlePublish}
+        onUnpublish={handleUnpublish}
+        onCopyEmbed={handleCopyEmbedCode}
+        onExport={handleExportJson}
+      />
+    </div>
   );
 
   return (
     <div className="flex h-screen max-h-screen flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border px-4 py-3">{toolbar}</div>
-      <div className="hidden flex-1 min-h-0 md:grid md:grid-cols-[280px_minmax(0,1fr)_300px]">
-        {navigatorPanel}
-        {canvas}
-        {inspector}
+      <div className="shrink-0 border-b border-border px-4 py-2">{toolbar}</div>
+      <div
+        className="editor-shell hidden flex-1 min-h-0 md:grid"
+        style={{
+          gridTemplateColumns: `${navigatorWidth}px minmax(0, 1fr) ${inspectorWidth}px`,
+        }}
+      >
+        <div className="relative h-full min-h-0 min-w-0">
+          {navigatorPanel}
+          <PanelResizeHandle
+            side="navigator"
+            onResize={(delta) => {
+              setNavigatorWidth((current) => clampPanelWidth(current + delta));
+            }}
+            onResizeEnd={persistNavigatorWidth}
+          />
+        </div>
+        <div className="min-h-0 min-w-0">{canvas}</div>
+        <div className="relative h-full min-h-0 min-w-0">
+          <PanelResizeHandle
+            side="inspector"
+            onResize={(delta) => {
+              setInspectorWidth((current) => clampPanelWidth(current + delta));
+            }}
+            onResizeEnd={persistInspectorWidth}
+          />
+          {inspector}
+        </div>
       </div>
 
       <div className="md:hidden">

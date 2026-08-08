@@ -6,6 +6,12 @@ import { select, isSelected } from "@/builder/canvas/selection";
 import type { CanvasState } from "@/builder/canvas/types";
 import { createRenameNodeCommand } from "@/builder/inspector/edit";
 import type { Command } from "@/builder/history/types";
+import type { NodeActions } from "@/components/editor/NodeActionsMenu";
+import { NodeActionsMenuContent } from "@/components/editor/NodeActionsMenu";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +21,10 @@ type NavigatorProps = {
   readonly canvasState: CanvasState;
   readonly onCanvasStateChange: (state: CanvasState) => void;
   readonly onCommand: (command: Command) => void;
+  readonly nodeActions: NodeActions;
+  readonly editingNodeId: string | null;
+  readonly onStartEdit: (nodeId: string) => void;
+  readonly onEndEdit: () => void;
 };
 
 type NodeRowProps = {
@@ -24,6 +34,7 @@ type NodeRowProps = {
   readonly canvasState: CanvasState;
   readonly onSelectNode: (nodeId: string) => void;
   readonly onCommand: (command: Command) => void;
+  readonly nodeActions: NodeActions;
   readonly collapsedMap: Record<string, boolean>;
   readonly toggleCollapse: (id: string) => void;
   readonly editingNodeId: string | null;
@@ -49,6 +60,7 @@ function NodeRow({
   canvasState,
   onSelectNode,
   onCommand,
+  nodeActions,
   collapsedMap,
   toggleCollapse,
   editingNodeId,
@@ -128,37 +140,45 @@ function NodeRow({
     onEndEdit();
   };
 
-  return (
-    <div className="flex flex-col">
-      <div
-        role="treeitem"
-        aria-selected={selected}
-        tabIndex={isEditing ? -1 : 0}
-        data-navigator-node-id={node.id}
-        onClick={handleSelect}
-        onDoubleClick={handleDoubleClick}
-        onKeyDown={
-          isEditing
-            ? undefined
-            : (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  onSelectNode(node.id);
-                }
+  const actionState = nodeActions.getActionState(node.id);
+  const menuHandlers = {
+    onMoveUp: () => nodeActions.moveNode(node.id, "up"),
+    onMoveDown: () => nodeActions.moveNode(node.id, "down"),
+    onDuplicate: () => nodeActions.duplicateNode(node.id),
+    onDelete: () => nodeActions.deleteNode(node.id),
+    onRename: () => onStartEdit(node.id),
+  };
+
+  const row = (
+    <div
+      role="treeitem"
+      aria-selected={selected}
+      tabIndex={isEditing ? -1 : 0}
+      data-navigator-node-id={node.id}
+      onClick={handleSelect}
+      onDoubleClick={handleDoubleClick}
+      onKeyDown={
+        isEditing
+          ? undefined
+          : (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                onSelectNode(node.id);
               }
-        }
-        // 10px per level rather than 12: the fixture reaches depth 7, and
-        // at 12px the indent alone ate enough of a 220px column to
-        // truncate the names this panel exists to show.
-        style={{ paddingLeft: `${depth * 10 + 6}px` }}
-        title={node.name ? `${node.name} — ${node.type}` : node.type}
-        className={cn(
-          "group flex items-center h-8 pr-2 gap-1 rounded-md text-xs font-medium cursor-pointer transition-colors select-none",
-          selected
-            ? "bg-primary text-primary-foreground font-semibold"
-            : "hover:bg-muted/60 text-foreground",
-        )}
-      >
+            }
+      }
+      // 10px per level rather than 12: the fixture reaches depth 7, and
+      // at 12px the indent alone ate enough of a 220px column to
+      // truncate the names this panel exists to show.
+      style={{ paddingLeft: `${depth * 10 + 6}px` }}
+      title={node.name ? `${node.name} — ${node.type}` : node.type}
+      className={cn(
+        "group flex items-center h-8 pr-2 gap-1 rounded-md text-xs font-medium cursor-pointer transition-colors select-none",
+        selected
+          ? "bg-primary text-primary-foreground font-semibold"
+          : "hover:bg-muted/60 text-foreground",
+      )}
+    >
         {hasChildren ? (
           <button
             type="button"
@@ -234,7 +254,24 @@ function NodeRow({
           </>
         )}
       </div>
+  );
 
+  return (
+    <div className="flex flex-col">
+      {isEditing ? (
+        row
+      ) : (
+        <ContextMenu
+          onOpenChange={(open) => {
+            if (open) {
+              onSelectNode(node.id);
+            }
+          }}
+        >
+          <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
+          <NodeActionsMenuContent state={actionState} handlers={menuHandlers} />
+        </ContextMenu>
+      )}
       {hasChildren && !isCollapsed ? (
         <div className="flex flex-col" role="group">
           {node.children.map((child) => (
@@ -246,6 +283,7 @@ function NodeRow({
               canvasState={canvasState}
               onSelectNode={onSelectNode}
               onCommand={onCommand}
+              nodeActions={nodeActions}
               collapsedMap={collapsedMap}
               toggleCollapse={toggleCollapse}
               editingNodeId={editingNodeId}
@@ -265,10 +303,13 @@ export function Navigator({
   canvasState,
   onCanvasStateChange,
   onCommand,
+  nodeActions,
+  editingNodeId,
+  onStartEdit,
+  onEndEdit,
 }: NavigatorProps) {
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
   const [expandedForSelection, setExpandedForSelection] = useState<string | null>(null);
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const isInternalSelectionRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -377,7 +418,7 @@ export function Navigator({
       </div>
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto p-1 space-y-0.5"
+        className="editor-scroll flex-1 overflow-y-auto p-1 space-y-0.5"
         role="tree"
         aria-label="Document Tree"
       >
@@ -388,11 +429,12 @@ export function Navigator({
           canvasState={canvasState}
           onSelectNode={handleSelectNode}
           onCommand={onCommand}
+          nodeActions={nodeActions}
           collapsedMap={collapsedMap}
           toggleCollapse={toggleCollapse}
           editingNodeId={editingNodeId}
-          onStartEdit={setEditingNodeId}
-          onEndEdit={() => setEditingNodeId(null)}
+          onStartEdit={onStartEdit}
+          onEndEdit={onEndEdit}
         />
       </div>
     </div>

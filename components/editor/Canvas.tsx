@@ -12,7 +12,6 @@ import {
   type MouseEvent,
 } from "react";
 import { beginDrag, endDrag, resolveDropCommand, updateDropTarget } from "@/builder/canvas/drag";
-import { resolveDuplicateCommand } from "@/builder/canvas/duplicate";
 import { resolveKeyAction } from "@/builder/canvas/keyboard";
 import { clearSelection, select } from "@/builder/canvas/selection";
 import { initialCanvasState, type CanvasState, type DropPosition } from "@/builder/canvas/types";
@@ -24,7 +23,12 @@ import type { ComponentRegistry } from "@/builder/registry/types";
 import { createRenderer } from "@/builder/renderer/renderer";
 import { createStyledRenderer } from "@/builder/styles/apply";
 import type { Breakpoint } from "@/builder/styles/types";
-import { Button } from "@/components/ui/button";
+import type { NodeActions } from "@/components/editor/NodeActionsMenu";
+import { NodeActionsMenuContent } from "@/components/editor/NodeActionsMenu";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 /**
  * One blue for every canvas affordance — selection outline, its name
@@ -50,6 +54,7 @@ type CanvasProps = {
   readonly viewport: Breakpoint;
   readonly onCanvasStateChange: (state: CanvasState) => void;
   readonly onDocumentChange: () => void;
+  readonly nodeActions: NodeActions;
 };
 
 export function Canvas({
@@ -61,10 +66,13 @@ export function Canvas({
   viewport,
   onCanvasStateChange,
   onDocumentChange,
+  nodeActions,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contextMenuTargetRef = useRef<string | null>(null);
   const [overlayStyle, setOverlayStyle] = useState<CSSProperties | null>(null);
   const [dropOverlayStyle, setDropOverlayStyle] = useState<CSSProperties | null>(null);
+  const [contextMenuNodeId, setContextMenuNodeId] = useState<string | null>(null);
 
   const document = session.getDocument();
 
@@ -98,14 +106,6 @@ export function Canvas({
   }, [document, pageId, selectedNodeId, documentVersion]);
 
   const isPageRoot = selectedFound?.parent === null;
-  const canMoveUp = Boolean(
-    selectedFound && selectedFound.parent && selectedFound.index > 0,
-  );
-  const canMoveDown = Boolean(
-    selectedFound &&
-      selectedFound.parent &&
-      selectedFound.index < selectedFound.parent.children.length - 1,
-  );
 
   const applyCommand = useCallback(
     (command: Command) => {
@@ -266,6 +266,30 @@ export function Canvas({
     onCanvasStateChange(select(canvasState, pageId, nodeId));
   };
 
+  const handleCanvasContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    const target = (event.target as HTMLElement).closest("[data-node-id]");
+    if (!target || !containerRef.current?.contains(target)) {
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenuNodeId(null);
+      contextMenuTargetRef.current = null;
+      return;
+    }
+    const nodeId = target.getAttribute("data-node-id");
+    if (!nodeId) {
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenuNodeId(null);
+      contextMenuTargetRef.current = null;
+      return;
+    }
+    // Let Radix open the menu (it preventDefaults for us, blocking native
+    // link menus). We only block the event on empty canvas above.
+    setContextMenuNodeId(nodeId);
+    contextMenuTargetRef.current = nodeId;
+    onCanvasStateChange(select(canvasState, pageId, nodeId));
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const action = resolveKeyAction({
       key: event.key,
@@ -286,7 +310,9 @@ export function Canvas({
 
     if (action === "duplicate") {
       event.preventDefault();
-      duplicateSelected();
+      if (selectedNodeId) {
+        nodeActions.duplicateNode(selectedNodeId);
+      }
       return;
     }
 
@@ -307,11 +333,7 @@ export function Canvas({
     }
 
     if (action === "delete" && selectedNodeId && !isPageRoot) {
-      applyCommand({
-        type: "DeleteNode",
-        payload: { pageId, nodeId: selectedNodeId },
-      });
-      onCanvasStateChange(clearSelection(canvasState));
+      nodeActions.deleteNode(selectedNodeId);
     }
   };
 
@@ -375,91 +397,38 @@ export function Canvas({
     onCanvasStateChange(endDrag(canvasState));
   };
 
-  const moveSelected = (direction: "up" | "down") => {
-    if (!selectedNodeId || !selectedFound?.parent) {
-      return;
-    }
-    const { parent, index } = selectedFound;
-    const siblingIndex = direction === "up" ? index - 1 : index + 1;
-    const sibling = parent.children[siblingIndex];
-    if (!sibling) {
-      return;
-    }
-    const dropTarget =
-      direction === "up"
-        ? { nodeId: sibling.id, position: "before" as const }
-        : { nodeId: sibling.id, position: "after" as const };
-    const command = resolveDropCommand(document, pageId, selectedNodeId, dropTarget);
-    if (command) {
-      applyCommand(command);
-    }
-  };
+  const menuNodeId = contextMenuNodeId ?? selectedNodeId;
+  const menuActionState = menuNodeId
+    ? nodeActions.getActionState(menuNodeId)
+    : { isPageRoot: true, canMoveUp: false, canMoveDown: false };
 
-  const duplicateSelected = () => {
-    if (!selectedNodeId || isPageRoot) {
-      return;
-    }
-    const command = resolveDuplicateCommand(document, pageId, selectedNodeId);
-    if (command) {
-      applyCommand(command);
-    }
-  };
+  const resolveMenuNodeId = () => contextMenuTargetRef.current ?? contextMenuNodeId ?? selectedNodeId;
 
-  const deleteSelected = () => {
-    if (!selectedNodeId || isPageRoot) {
-      return;
-    }
-    applyCommand({
-      type: "DeleteNode",
-      payload: { pageId, nodeId: selectedNodeId },
-    });
-    onCanvasStateChange(clearSelection(canvasState));
+  const menuHandlers = {
+    onMoveUp: () => {
+      const id = resolveMenuNodeId();
+      if (id) nodeActions.moveNode(id, "up");
+    },
+    onMoveDown: () => {
+      const id = resolveMenuNodeId();
+      if (id) nodeActions.moveNode(id, "down");
+    },
+    onDuplicate: () => {
+      const id = resolveMenuNodeId();
+      if (id) nodeActions.duplicateNode(id);
+    },
+    onDelete: () => {
+      const id = resolveMenuNodeId();
+      if (id) nodeActions.deleteNode(id);
+    },
+    onRename: () => {
+      const id = resolveMenuNodeId();
+      if (id) nodeActions.onRename(id);
+    },
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {selectedNodeId ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3 py-2">
-          <span className="text-xs text-muted-foreground">Selected node</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!canMoveUp}
-            onClick={() => moveSelected("up")}
-          >
-            Up
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!canMoveDown}
-            onClick={() => moveSelected("down")}
-          >
-            Down
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={isPageRoot}
-            onClick={duplicateSelected}
-          >
-            Duplicate
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={isPageRoot}
-            onClick={deleteSelected}
-          >
-            Delete
-          </Button>
-        </div>
-      ) : null}
-
       {/*
         Editor-only minimum hit area: some nodes (thin text, empty leaf
         components before EmptyPlaceholder-style content is entered) can
@@ -469,60 +438,72 @@ export function Canvas({
         which has no equivalent rule).
       */}
       <style>{`.builder-canvas-root [data-node-id] { min-height: 8px; }`}</style>
-      <div
-        ref={containerRef}
-        tabIndex={0}
-        role="application"
-        aria-label="Portfolio canvas"
-        className="builder-canvas-root relative min-h-0 flex-1 overflow-auto bg-muted/40 p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-        onClick={handleCanvasClick}
-        onKeyDown={handleKeyDown}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        onDragEnd={handleDragEnd}
+      <ContextMenu
+        onOpenChange={(open) => {
+          if (!open) {
+            setContextMenuNodeId(null);
+          }
+        }}
       >
-        <div
-          className="mx-auto min-h-full bg-background shadow-sm ring-1 ring-border/50 transition-[max-width]"
-          style={{ maxWidth: VIEWPORT_MAX_WIDTH[viewport] }}
-        >
-          {renderedPage}
-        </div>
-        {/*
-          The selection outline carries its own name badge, the way
-          Webflow tags a selected element. Without it the canvas tells you
-          *that* something is selected but never *what* — and with nested
-          Containers/Stacks that all render as plain boxes, the outline
-          alone is genuinely ambiguous. The badge sits above the box and
-          falls back to the component type when the node is unnamed.
-        */}
-        {overlayStyle ? (
-          <div aria-hidden="true" style={overlayStyle}>
-            {selectedFound ? (
-              <span
-                style={{
-                  position: "absolute",
-                  bottom: "100%",
-                  left: "-2px",
-                  marginBottom: "3px",
-                  padding: "1px 6px",
-                  borderRadius: "3px 3px 0 0",
-                  backgroundColor: SELECTION_COLOR,
-                  color: "#ffffff",
-                  fontSize: "10px",
-                  lineHeight: "16px",
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  pointerEvents: "none",
-                }}
-              >
-                {selectedFound.node.name ?? selectedFound.node.type}
-              </span>
+        <ContextMenuTrigger asChild>
+          <div
+            ref={containerRef}
+            tabIndex={0}
+            role="application"
+            aria-label="Portfolio canvas"
+            className="builder-canvas-root editor-scroll relative min-h-0 flex-1 overflow-auto bg-muted/40 p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+            onClick={handleCanvasClick}
+            onContextMenu={handleCanvasContextMenu}
+            onKeyDown={handleKeyDown}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
+          >
+            <div
+              className="mx-auto min-h-full bg-background shadow-sm ring-1 ring-border/50 transition-[max-width]"
+              style={{ maxWidth: VIEWPORT_MAX_WIDTH[viewport] }}
+            >
+              {renderedPage}
+            </div>
+            {/*
+              The selection outline carries its own name badge, the way
+              Webflow tags a selected element. Without it the canvas tells you
+              *that* something is selected but never *what* — and with nested
+              Containers/Stacks that all render as plain boxes, the outline
+              alone is genuinely ambiguous. The badge sits above the box and
+              falls back to the component type when the node is unnamed.
+            */}
+            {overlayStyle ? (
+              <div aria-hidden="true" style={overlayStyle}>
+                {selectedFound ? (
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: "100%",
+                      left: "-2px",
+                      marginBottom: "3px",
+                      padding: "1px 6px",
+                      borderRadius: "3px 3px 0 0",
+                      backgroundColor: SELECTION_COLOR,
+                      color: "#ffffff",
+                      fontSize: "10px",
+                      lineHeight: "16px",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {selectedFound.node.name ?? selectedFound.node.type}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
+            {dropOverlayStyle ? <div aria-hidden="true" style={dropOverlayStyle} /> : null}
           </div>
-        ) : null}
-        {dropOverlayStyle ? <div aria-hidden="true" style={dropOverlayStyle} /> : null}
-      </div>
+        </ContextMenuTrigger>
+        <NodeActionsMenuContent state={menuActionState} handlers={menuHandlers} />
+      </ContextMenu>
     </div>
   );
 }

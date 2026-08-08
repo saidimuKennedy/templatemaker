@@ -156,11 +156,12 @@ Sequence 18 → 19 → 20 rather than in parallel: 18 is the safety net for
 the other two, and 20 changes the node contract and `schemaVersion`,
 which 19's prompt construction reads.
 
-### Editor shell (Plan 21) — inserted ahead of v2
+### Editor shell (Plans 21–22) — inserted ahead of v2
 
 | # | Plan | Directory | Depends on | Notes |
 |---|------|-----------|------------|-------|
 | 21 | [Webflow Editor Alignment](./21-webflow-editor-alignment.md) | `scripts/seed-dogfood-portfolio.tsx`, `components/editor/{Navigator,StyleInspector,EditorClient,Toolbox}.tsx`, `builder/styles/fields.ts`, `builder/document/types.ts` | v1 (13–16) | **Landed.** Navigator panel, grouped Style panel, Toolbox popover |
+| 22 | Editor shell: resizable panels, context menu, scrollbars | `components/editor/{EditorClient,Canvas,Navigator,NodeActionsMenu}.tsx`, `components/ui/context-menu.tsx`, `app/globals.css` | 21 | **Landed.** Adds `@radix-ui/react-context-menu`. Brief lived in chat, not a plan file |
 
 Plan 21 was inserted after v1 and before the v2 sequence: the editor's
 shell was `[Toolbox | Canvas | Inspector]` with no way to see or select
@@ -185,9 +186,30 @@ decisions" section before touching styles or the editor shell:
   written after a longhand silently clobbers it. `expandSpacingShorthand()`
   in `builder/styles/fields.ts` migrates legacy shorthands on edit.
 
-Known follow-ups not yet built: renaming a node from the Navigator
-(needs a `RenameNode` command — `name` is neither a prop nor a style, so
-no existing command can set it), and Navigator drag-to-reorder.
+Plan 22 continued the same shell work: side panels are drag-resizable
+with widths persisted to `localStorage`, the old `Selected node` action
+bar was replaced by a right-click context menu shared between the
+Navigator and the canvas (`components/editor/NodeActionsMenu.tsx` — one
+item set, deliberately not duplicated per surface), and editor
+scrollbars are themed.
+
+Two things from 21/22 that later work must not undo:
+
+- **The `ResizeObserver` in `Canvas.tsx`.** The canvas column is sized by
+  the editor's CSS grid, so resizing a panel or toggling the
+  Mobile/Desktop viewport changes the canvas width *without* firing a
+  window resize. A `window.resize` listener alone leaves the blue
+  selection outline stranded at stale coordinates, visibly detached from
+  its node. The observer is what fixes that.
+- **Node renaming goes through the `RenameNode` command** added in the
+  Plan 21 follow-up (`builder/history/{types,commands}.ts`,
+  `createRenameNodeCommand` in `builder/inspector/edit.ts`). Its inverse
+  restores `undefined` rather than `""`, so undoing a rename on a
+  previously-unnamed node correctly falls back to showing the component
+  type.
+
+Known follow-up not yet built: Navigator drag-to-reorder. Plan 22's
+eleven visual acceptance checks also remain unconfirmed.
 
 Plans 07 and 08 can run in parallel: Plan 08's seed documents only
 reference Plan 07's component `type` strings and prop keys as literals

@@ -98,7 +98,7 @@ type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>;
 type ToastActionElement = React.ReactElement<typeof ToastAction>;
 
 const TOAST_LIMIT = 3;
-const TOAST_REMOVE_DELAY = 5000;
+const TOAST_REMOVE_DELAY = 1000;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -212,12 +212,19 @@ export function useToast() {
 }
 
 export function Toaster() {
-  const { toasts } = useToast();
+  const { toasts, dismiss } = useToast();
 
   return (
     <ToastProvider>
       {toasts.map(({ id, title, description, action, ...props }) => (
-        <Toast key={id} {...props}>
+        <Toast
+          key={id}
+          {...props}
+          onOpenChange={(open) => {
+            if (!open) dismiss(id);
+            props.onOpenChange?.(open);
+          }}
+        >
           <div className="grid gap-1">
             {title ? <ToastTitle>{title}</ToastTitle> : null}
             {description ? <ToastDescription>{description}</ToastDescription> : null}

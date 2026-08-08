@@ -14,15 +14,18 @@ const CATEGORY_ORDER: ComponentCategory[] = [
 type ToolboxProps = {
   readonly registry: ComponentRegistry;
   readonly onAdd: (componentType: string) => void;
+  readonly variant?: "default" | "compact";
 };
 
-export function Toolbox({ registry, onAdd }: ToolboxProps) {
+export function Toolbox({ registry, onAdd, variant = "default" }: ToolboxProps) {
   return (
     <div className="flex flex-col gap-3 p-1">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add element</p>
-        <p className="text-[11px] text-muted-foreground">Insert a node into the page structure</p>
-      </div>
+      {variant === "default" ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add element</p>
+          <p className="text-[11px] text-muted-foreground">Insert a node into the page structure</p>
+        </div>
+      ) : null}
       {CATEGORY_ORDER.map((category) => {
         const components = registry.listByCategory(category);
         if (components.length === 0) {
