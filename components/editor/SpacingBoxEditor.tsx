@@ -1,12 +1,17 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { BuilderNode } from "@/builder/document/types";
 import {
   MARGIN_SIDES,
   PADDING_SIDES,
   type StyleField,
 } from "@/builder/styles/fields";
+import {
+  isCommittableNumber,
+  parseDimension,
+  serializeDimension,
+} from "@/builder/styles/dimension";
 import { resolveEffectiveStyleField } from "@/builder/styles/effective";
 import type { Breakpoint } from "@/builder/styles/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
@@ -28,16 +33,17 @@ const SIDE_LAYOUT: Record<
   paddingLeft: { edge: "left", layer: "padding" },
 };
 
+/**
+ * These boxes read as bare numbers in px, so `16px` shows as `16` — but a value
+ * in other units must stay visible as written, or editing a `2rem` gap silently
+ * turns it into `2px`.
+ */
 function formatBoxValue(value: string | number | undefined): string {
-  if (value === undefined) {
-    return "";
+  const parsed = parseDimension(value);
+  if (parsed.mode === "value" && parsed.unit === "px") {
+    return parsed.numeric;
   }
-  const raw = String(value).trim();
-  if (raw.endsWith("px")) {
-    const numeric = Number.parseFloat(raw);
-    return Number.isNaN(numeric) ? raw : String(numeric);
-  }
-  return raw;
+  return parsed.mode === "empty" ? "" : parsed.raw;
 }
 
 function SideInput({
@@ -57,6 +63,33 @@ function SideInput({
 }) {
   const inputId = useId();
 
+  // The document stores CSS, the box shows a number: typing `20` has to be
+  // written as `20px`, since a unitless `margin-top: 20` is dropped by the
+  // browser. Anything that isn't a plain number (`2rem`, `calc(…)`) goes
+  // through as typed, and partials like `-` are held here until they parse.
+  const [draft, setDraft] = useState(value);
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setDraft(value);
+  }
+
+  const handleChange = (next: string) => {
+    setDraft(next);
+    const trimmed = next.trim();
+    if (trimmed === "") {
+      onChange("");
+      return;
+    }
+    if (isCommittableNumber(trimmed)) {
+      onChange(serializeDimension(trimmed, "px"));
+      return;
+    }
+    if (parseDimension(trimmed).mode !== "custom") {
+      onChange(trimmed);
+    }
+  };
+
   return (
     <input
       id={inputId}
@@ -64,9 +97,15 @@ function SideInput({
       inputMode="decimal"
       title={label}
       aria-label={label}
-      value={value}
+      value={draft}
       placeholder={placeholder ?? "0"}
-      onChange={(event) => onChange(event.target.value)}
+      onBlur={() => {
+        const trimmed = draft.trim();
+        if (trimmed !== "" && !isCommittableNumber(trimmed)) {
+          onChange(trimmed);
+        }
+      }}
+      onChange={(event) => handleChange(event.target.value)}
       className={cn(
         "h-6 w-11 shrink-0 rounded border border-transparent bg-background/90 px-0.5 text-center text-[11px] tabular-nums shadow-sm transition-colors",
         "hover:border-border focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   STYLE_GROUPS,
   TEXT_ALIGN_OPTIONS,
+  expandBorderRadiusShorthand,
   expandSpacingShorthand,
   type StyleField,
   type StyleGroup,
@@ -31,6 +32,12 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { SpacingBoxEditor } from "@/components/editor/SpacingBoxEditor";
 import { SizePanelEditor } from "@/components/editor/SizePanelEditor";
+import { PositionPanelEditor } from "@/components/editor/PositionPanelEditor";
+import { TypographyPanelEditor } from "@/components/editor/TypographyPanelEditor";
+import { BackgroundsPanelEditor } from "@/components/editor/BackgroundsPanelEditor";
+import { BordersPanelEditor } from "@/components/editor/BordersPanelEditor";
+import { EffectsPanelEditor } from "@/components/editor/EffectsPanelEditor";
+import { LayoutPanelEditor } from "@/components/editor/LayoutPanelEditor";
 
 const CUSTOM_VALUE = "__custom__";
 
@@ -273,6 +280,7 @@ function StyleGroupSection({
   registry,
   declaration,
   onFieldChange,
+  onDeclarationPatch,
 }: {
   readonly group: StyleGroup;
   readonly node: BuilderNode;
@@ -280,6 +288,7 @@ function StyleGroupSection({
   readonly registry: ComponentRegistry;
   readonly declaration: Record<string, string | number>;
   readonly onFieldChange: (field: StyleField, value: string) => void;
+  readonly onDeclarationPatch: (mutate: (draft: Record<string, string | number>) => void) => void;
 }) {
   const [isOpen, setIsOpen] = useState(group.defaultOpen);
 
@@ -307,8 +316,57 @@ function StyleGroupSection({
               declaration={declaration}
               onSideChange={onFieldChange}
             />
+          ) : group.id === "layout" ? (
+            <LayoutPanelEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onFieldChange={onFieldChange}
+            />
           ) : group.id === "size" ? (
             <SizePanelEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onFieldChange={onFieldChange}
+            />
+          ) : group.id === "position" ? (
+            <PositionPanelEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onFieldChange={onFieldChange}
+            />
+          ) : group.id === "typography" ? (
+            <TypographyPanelEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onFieldChange={onFieldChange}
+            />
+          ) : group.id === "backgrounds" ? (
+            <BackgroundsPanelEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onFieldChange={onFieldChange}
+            />
+          ) : group.id === "borders" ? (
+            <BordersPanelEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onFieldChange={onFieldChange}
+              onDeclarationPatch={onDeclarationPatch}
+            />
+          ) : group.id === "effects" ? (
+            <EffectsPanelEditor
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -364,8 +422,19 @@ export function StyleInspector({
     } else {
       next[field.key] = value;
     }
-    const nextDeclaration = expandSpacingShorthand(next);
+    const nextDeclaration = expandBorderRadiusShorthand(expandSpacingShorthand(next));
     onCommand(createUpdateStylesCommand(pageId, node, breakpoint, nextDeclaration));
+  };
+
+  const applyDeclarationPatch = (mutate: (draft: Record<string, string | number>) => void) => {
+    const next = expandBorderRadiusShorthand(expandSpacingShorthand({ ...declaration }));
+    mutate(next);
+    for (const key of Object.keys(next)) {
+      if (String(next[key]).trim() === "") {
+        delete next[key];
+      }
+    }
+    onCommand(createUpdateStylesCommand(pageId, node, breakpoint, next));
   };
 
   return (
@@ -387,6 +456,7 @@ export function StyleInspector({
             registry={registry}
             declaration={declaration}
             onFieldChange={handleFieldChange}
+            onDeclarationPatch={applyDeclarationPatch}
           />
         ))}
       </div>

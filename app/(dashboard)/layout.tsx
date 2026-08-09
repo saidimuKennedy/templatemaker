@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/(auth)/_actions";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -26,11 +27,14 @@ export default async function DashboardLayout({
           <Link href="/dashboard" className="font-semibold">
             Portfolio Engine
           </Link>
-          <form action={signOut}>
-            <Button type="submit" variant="ghost" size="sm">
-              Sign out
-            </Button>
-          </form>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <form action={signOut}>
+              <Button type="submit" variant="ghost" size="sm">
+                Sign out
+              </Button>
+            </form>
+          </div>
         </header>
         <main className="flex-1">{children}</main>
       </div>

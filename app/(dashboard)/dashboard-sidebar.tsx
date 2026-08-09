@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 export function DashboardSidebar({
@@ -94,6 +95,17 @@ export function DashboardSidebar({
 
       <div className="mt-auto pt-2">
         <Separator className="mb-2" />
+        <div
+          className={cn(
+            "mb-2 flex items-center",
+            collapsed ? "justify-center" : "px-1",
+          )}
+        >
+          <ThemeToggle
+            className={cn(collapsed ? "h-8 w-8 p-0" : "w-full justify-start px-2")}
+            showLabel={!collapsed}
+          />
+        </div>
         <DropdownMenu>
           {/*
             Explicit id overrides Radix's useId()-derived trigger id (React 19

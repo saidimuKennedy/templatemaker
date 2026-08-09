@@ -29,6 +29,7 @@ import { exportDocumentJson } from "@/builder/publish/export";
 import { migrateDocumentLayoutIntent, seedLayoutStyles } from "@/builder/styles/layout-intent";
 import type { Breakpoint } from "@/builder/styles/types";
 import { createPortfolioRegistry } from "@/lib/builder";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const NAVIGATOR_WIDTH_KEY = "editor-navigator-width";
@@ -522,8 +523,9 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   };
 
   const toolbar = (
-    <div className="mx-4 flex items-center py-0.5">
+    <div className="mx-4 flex items-center justify-between py-0.5">
       <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
+      <ThemeToggle className="md:hidden" />
     </div>
   );
 

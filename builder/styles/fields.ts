@@ -51,15 +51,31 @@ export const TEXT_ALIGN_OPTIONS = [
   { label: "Left", value: "left" },
   { label: "Center", value: "center" },
   { label: "Right", value: "right" },
+  { label: "Justify", value: "justify" },
 ] as const;
 
-const DISPLAY_OPTIONS = [
+/**
+ * The three shown as buttons, and the rest behind the overflow menu.
+ *
+ * Declared as two lists rather than sliced out of one: index-based slicing made
+ * the panel's layout depend on array order, so adding a display option silently
+ * moved a button into the menu.
+ */
+export const PRIMARY_DISPLAY_OPTIONS = [
   { label: "Block", value: "block" },
   { label: "Flex", value: "flex" },
   { label: "Grid", value: "grid" },
+] as const;
+
+export const OVERFLOW_DISPLAY_OPTIONS = [
   { label: "Inline block", value: "inline-block" },
+  { label: "Inline flex", value: "inline-flex" },
+  { label: "Inline grid", value: "inline-grid" },
+  { label: "Inline", value: "inline" },
   { label: "None", value: "none" },
 ] as const;
+
+const DISPLAY_OPTIONS = [...PRIMARY_DISPLAY_OPTIONS, ...OVERFLOW_DISPLAY_OPTIONS] as const;
 
 const FLEX_WRAP_OPTIONS = [
   { label: "Wrap", value: "wrap" },
@@ -105,7 +121,15 @@ const OVERFLOW_OPTIONS = [
   { label: "Auto", value: "auto" },
 ] as const;
 
-export { OVERFLOW_OPTIONS };
+export {
+  ALIGN_OPTIONS,
+  DISPLAY_OPTIONS,
+  FLEX_DIRECTION_OPTIONS,
+  FLEX_WRAP_OPTIONS,
+  JUSTIFY_OPTIONS,
+  OVERFLOW_OPTIONS,
+  POSITION_OPTIONS,
+};
 
 const BORDER_STYLE_OPTIONS = [
   { label: "None", value: "none" },
@@ -113,6 +137,8 @@ const BORDER_STYLE_OPTIONS = [
   { label: "Dashed", value: "dashed" },
   { label: "Dotted", value: "dotted" },
 ] as const;
+
+export { BORDER_STYLE_OPTIONS };
 
 const TEXT_TRANSFORM_OPTIONS = [
   { label: "None", value: "none" },
@@ -140,6 +166,8 @@ const BACKGROUND_REPEAT_OPTIONS = [
   { label: "Repeat Y", value: "repeat-y" },
 ] as const;
 
+export { BACKGROUND_REPEAT_OPTIONS, BACKGROUND_SIZE_OPTIONS };
+
 const CURSOR_OPTIONS = [
   { label: "Auto", value: "auto" },
   { label: "Default", value: "default" },
@@ -154,6 +182,27 @@ const POINTER_EVENTS_OPTIONS = [
   { label: "None", value: "none" },
 ] as const;
 
+const BLEND_MODE_OPTIONS = [
+  { label: "Normal", value: "normal" },
+  { label: "Multiply", value: "multiply" },
+  { label: "Screen", value: "screen" },
+  { label: "Overlay", value: "overlay" },
+  { label: "Darken", value: "darken" },
+  { label: "Lighten", value: "lighten" },
+  { label: "Color dodge", value: "color-dodge" },
+  { label: "Color burn", value: "color-burn" },
+  { label: "Hard light", value: "hard-light" },
+  { label: "Soft light", value: "soft-light" },
+  { label: "Difference", value: "difference" },
+  { label: "Exclusion", value: "exclusion" },
+  { label: "Hue", value: "hue" },
+  { label: "Saturation", value: "saturation" },
+  { label: "Color", value: "color" },
+  { label: "Luminosity", value: "luminosity" },
+] as const;
+
+export { BLEND_MODE_OPTIONS, CURSOR_OPTIONS, POINTER_EVENTS_OPTIONS };
+
 /** The four sides, in CSS shorthand order — drives the box editor. */
 export const PADDING_SIDES = [
   "paddingTop",
@@ -167,6 +216,14 @@ export const MARGIN_SIDES = [
   "marginRight",
   "marginBottom",
   "marginLeft",
+] as const;
+
+/** The four corners — drives the radius box editor. */
+export const BORDER_RADIUS_CORNERS = [
+  "borderTopLeftRadius",
+  "borderTopRightRadius",
+  "borderBottomRightRadius",
+  "borderBottomLeftRadius",
 ] as const;
 
 export const STYLE_GROUPS: readonly StyleGroup[] = [
@@ -281,6 +338,12 @@ export const STYLE_GROUPS: readonly StyleGroup[] = [
     defaultOpen: false,
     fields: [
       {
+        key: "mixBlendMode",
+        label: "Blending",
+        kind: "select",
+        options: BLEND_MODE_OPTIONS,
+      },
+      {
         key: "transform",
         label: "Transform",
         kind: "text",
@@ -340,5 +403,57 @@ export function expandSpacingShorthand(
     }
   }
 
+  return next;
+}
+
+/**
+ * Rewrites `borderRadius` shorthand into the four corner longhands so the
+ * radius editor owns a single source of truth per corner.
+ *
+ * All of the 1–4 value forms are expanded, not just the single value. Leaving
+ * `8px 16px` as shorthand meant the editor showed four empty corners and then
+ * dropped the shorthand on its first write, losing the radius entirely.
+ * Elliptical radii (`50% / 20%`) have no per-corner equivalent here and are
+ * left untouched.
+ */
+export function expandBorderRadiusShorthand(
+  declaration: Record<string, string | number>,
+): Record<string, string | number> {
+  const next = { ...declaration };
+  const value = next.borderRadius;
+  if (value === undefined) {
+    return next;
+  }
+
+  const text = String(value).trim();
+  if (text === "" || text.includes("/")) {
+    return next;
+  }
+
+  const parts = text.split(/\s+/);
+  if (parts.length > 4) {
+    return next;
+  }
+
+  // CSS shorthand order: top-left, top-right, bottom-right, bottom-left.
+  const [first, second = first, third = first, fourth = second] = parts as [
+    string,
+    string?,
+    string?,
+    string?,
+  ];
+  const corners: Record<(typeof BORDER_RADIUS_CORNERS)[number], string> = {
+    borderTopLeftRadius: first,
+    borderTopRightRadius: second,
+    borderBottomRightRadius: third,
+    borderBottomLeftRadius: fourth,
+  };
+
+  delete next.borderRadius;
+  for (const corner of BORDER_RADIUS_CORNERS) {
+    if (next[corner] === undefined) {
+      next[corner] = corners[corner];
+    }
+  }
   return next;
 }

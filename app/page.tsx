@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { getSession } from "@/lib/auth";
 
 export default async function HomePage() {
   const { user } = await getSession();
@@ -10,7 +11,8 @@ export default async function HomePage() {
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <span className="text-lg font-semibold">Portfolio Generation Engine</span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             {user ? (
               <Button asChild>
                 <Link href="/dashboard">Dashboard</Link>
