@@ -3,12 +3,18 @@
 import { useId, useMemo, useState, type JSX } from "react";
 import type { BuilderNode } from "@/builder/document/types";
 import { BORDER_RADIUS_CORNERS } from "@/builder/styles/fields";
+import {
+  isCommittableNumber,
+  parseDimension,
+  serializeDimension,
+} from "@/builder/styles/dimension";
 import { resolveEffectiveStyleField } from "@/builder/styles/effective";
 import type { Breakpoint } from "@/builder/styles/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { RotateCcw } from "lucide-react";
 
 type CornerKey = (typeof BORDER_RADIUS_CORNERS)[number];
 
@@ -70,28 +76,39 @@ const CORNER_META: Record<
   },
 };
 
-function parsePxNumber(value: string | number | undefined): number {
-  if (value === undefined) {
-    return 0;
-  }
-  const text = String(value).trim();
-  const numeric = Number.parseFloat(text.endsWith("px") ? text.slice(0, -2) : text);
-  return Number.isNaN(numeric) ? 0 : numeric;
+/** Number for the slider; 0 for values it can't represent (calc, var). */
+function radiusNumber(value: string | number | undefined): number {
+  const parsed = parseDimension(value);
+  return parsed.mode === "value" ? Number.parseFloat(parsed.numeric) : 0;
 }
 
-function toPx(value: string): string {
-  const trimmed = value.trim();
+/**
+ * What the corner box shows: a bare number for px, and the value as written for
+ * anything else. Formatting everything as a number turned a `50%` pill radius
+ * into `50`, which the next edit wrote back as `50px`, and showed `calc(…)` as
+ * a plain `0`.
+ */
+function formatRadius(value: string | number | undefined): string {
+  const parsed = parseDimension(value);
+  if (parsed.mode === "empty") {
+    return "";
+  }
+  return parsed.mode === "value" && parsed.unit === "px" ? parsed.numeric : parsed.raw;
+}
+
+/** A typed corner: bare numbers become px, everything else is kept verbatim. */
+function toRadiusValue(raw: string): string {
+  const trimmed = raw.trim();
   if (!trimmed) {
     return "";
   }
-  if (trimmed.endsWith("px") || trimmed.endsWith("%")) {
-    return trimmed;
-  }
-  return `${trimmed}px`;
+  return isCommittableNumber(trimmed) ? serializeDimension(trimmed, "px") : trimmed;
 }
 
-function formatPx(value: string | number | undefined): string {
-  return String(parsePxNumber(value));
+/** Only a plain px length can be driven by the linked slider. */
+function isSliderRadius(value: string | number | undefined): boolean {
+  const parsed = parseDimension(value);
+  return parsed.mode === "empty" || (parsed.mode === "value" && parsed.unit === "px");
 }
 
 function LinkedRadiusIcon({ className }: { readonly className?: string }) {
@@ -128,8 +145,11 @@ function readCornerValues(
 }
 
 function cornersAreLinked(values: Record<CornerKey, string | number | undefined>): boolean {
-  const formatted = BORDER_RADIUS_CORNERS.map((key) => formatPx(values[key]));
-  return formatted.every((value) => value === formatted[0]);
+  // Compares the authored text, so `24px` and `24%` are not treated as equal.
+  const written = BORDER_RADIUS_CORNERS.map((key) =>
+    values[key] === undefined ? "" : String(values[key]).trim(),
+  );
+  return written.every((value) => value === written[0]);
 }
 
 type BorderRadiusEditorProps = {
@@ -152,44 +172,55 @@ export function BorderRadiusEditor({
   const linked = useMemo(() => cornersAreLinked(values), [values]);
   const [mode, setMode] = useState<"linked" | "individual">(linked ? "linked" : "individual");
 
-  const unifiedPx = parsePxNumber(
-    values.borderTopLeftRadius ??
-      declaration.borderRadius ??
-      values.borderTopRightRadius ??
-      0,
+  const unifiedPx = radiusNumber(
+    values.borderTopLeftRadius ?? declaration.borderRadius ?? values.borderTopRightRadius,
   );
+
+  /** Every corner is a plain px length, so the linked slider is meaningful. */
+  const sliderUsable = BORDER_RADIUS_CORNERS.every((key) => isSliderRadius(values[key]));
 
   const previewRadius = BORDER_RADIUS_CORNERS.map((key) => {
     const authored = values[key];
     if (authored !== undefined) {
-      return toPx(String(authored)) || "0px";
+      return toRadiusValue(String(authored)) || "0px";
     }
     const effective = resolveEffectiveStyleField(node, breakpoint, key, registry);
-    return effective ? toPx(String(effective.value)) || "0px" : "0px";
+    return effective ? toRadiusValue(String(effective.value)) || "0px" : "0px";
   }).join(" ");
 
   const applyAllCorners = (px: number) => {
-    const clamped = Math.max(0, Math.round(px));
+    /*
+     * Zero is written, not deleted. Deleting fell back to the cascade, so a node
+     * inheriting 24px from Mobile could not be squared off at a wider
+     * breakpoint — the corner sprang back to 24px.
+     */
+    const clamped = `${Math.max(0, Math.round(px))}px`;
     onPatch((draft) => {
       delete draft.borderRadius;
       for (const corner of BORDER_RADIUS_CORNERS) {
-        if (clamped === 0) {
-          delete draft[corner];
-        } else {
-          draft[corner] = `${clamped}px`;
-        }
+        draft[corner] = clamped;
       }
     });
   };
 
   const applyCorner = (corner: CornerKey, raw: string) => {
+    const next = toRadiusValue(raw);
     onPatch((draft) => {
       delete draft.borderRadius;
-      const next = toPx(raw);
-      if (!next || parsePxNumber(next) === 0) {
+      if (!next) {
+        // Empty means "inherit again", which is the only way to unset a corner.
         delete draft[corner];
       } else {
         draft[corner] = next;
+      }
+    });
+  };
+
+  const clearAllCorners = () => {
+    onPatch((draft) => {
+      delete draft.borderRadius;
+      for (const corner of BORDER_RADIUS_CORNERS) {
+        delete draft[corner];
       }
     });
   };
@@ -198,40 +229,53 @@ export function BorderRadiusEditor({
     <div className="space-y-2.5">
       <div className="flex items-center justify-between gap-2">
         <Label className="text-[11px] font-medium text-muted-foreground">Radius</Label>
-        <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
-          <button
-            type="button"
-            title="Link all corners"
-            aria-label="Link all corners"
-            aria-pressed={mode === "linked"}
-            onClick={() => {
-              setMode("linked");
-              applyAllCorners(unifiedPx);
-            }}
-            className={cn(
-              "flex h-7 w-7 items-center justify-center rounded transition-colors",
-              mode === "linked"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <LinkedRadiusIcon />
-          </button>
-          <button
-            type="button"
-            title="Edit corners individually"
-            aria-label="Edit corners individually"
-            aria-pressed={mode === "individual"}
-            onClick={() => setMode("individual")}
-            className={cn(
-              "flex h-7 w-7 items-center justify-center rounded transition-colors",
-              mode === "individual"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <IndividualRadiusIcon />
-          </button>
+        <div className="flex items-center gap-1">
+          {BORDER_RADIUS_CORNERS.some((corner) => values[corner] !== undefined) ? (
+            <button
+              type="button"
+              title="Clear radius override"
+              aria-label="Clear radius override"
+              onClick={clearAllCorners}
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </button>
+          ) : null}
+          <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+            <button
+              type="button"
+              title="Link all corners"
+              aria-label="Link all corners"
+              aria-pressed={mode === "linked"}
+              onClick={() => {
+                setMode("linked");
+                applyAllCorners(unifiedPx);
+              }}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded transition-colors",
+                mode === "linked"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <LinkedRadiusIcon />
+            </button>
+            <button
+              type="button"
+              title="Edit corners individually"
+              aria-label="Edit corners individually"
+              aria-pressed={mode === "individual"}
+              onClick={() => setMode("individual")}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded transition-colors",
+                mode === "individual"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <IndividualRadiusIcon />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -241,19 +285,23 @@ export function BorderRadiusEditor({
             id={sliderId}
             type="range"
             min={0}
-            max={64}
+            // Grows with the value so a 120px radius is not snapped down to 64
+            // the moment the handle is touched.
+            max={Math.max(64, Math.ceil(unifiedPx))}
             step={1}
-            value={Math.min(unifiedPx, 64)}
-            className="h-1.5 min-w-0 flex-1 accent-primary"
+            value={unifiedPx}
+            disabled={!sliderUsable}
+            aria-label="All corners radius"
+            className="h-1.5 min-w-0 flex-1 accent-primary disabled:opacity-40"
             onChange={(event) => applyAllCorners(Number(event.target.value))}
           />
           <div className="flex items-center gap-1">
             <Input
               type="text"
               inputMode="decimal"
-              aria-labelledby={sliderId}
+              aria-label="All corners radius"
               className="h-7 w-12 px-1 text-center text-xs tabular-nums"
-              value={formatPx(unifiedPx)}
+              value={String(unifiedPx)}
               onChange={(event) => {
                 const next = Number.parseFloat(event.target.value);
                 applyAllCorners(Number.isNaN(next) ? 0 : next);
@@ -276,7 +324,7 @@ export function BorderRadiusEditor({
                 : undefined;
             const placeholder =
               effective && effective.source !== "authored"
-                ? formatPx(String(effective.value))
+                ? formatRadius(String(effective.value))
                 : "0";
 
             return (
@@ -289,7 +337,7 @@ export function BorderRadiusEditor({
                   aria-label={meta.label}
                   className="h-6 w-11 px-1 text-center text-[11px] tabular-nums"
                   placeholder={placeholder}
-                  value={authored !== undefined ? formatPx(authored) : ""}
+                  value={authored !== undefined ? formatRadius(authored) : ""}
                   onChange={(event) => {
                     if (mode === "linked") {
                       const next = Number.parseFloat(event.target.value);

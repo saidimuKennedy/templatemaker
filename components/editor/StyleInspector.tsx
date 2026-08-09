@@ -307,9 +307,18 @@ function StyleGroupSection({
         )}
       </button>
       {isOpen ? (
+        /*
+          Each panel is keyed by node id so its local UI state — linked/individual
+          radius corners, which effect rows are expanded, custom-font mode — is
+          re-derived when the selection changes. Without the key, React kept the
+          state of the previously selected node: an open shadow editor on a node
+          with no shadow, or worse, a collapsed "add shadow" row hiding one that
+          existed.
+        */
         <div className="mt-2.5 space-y-3">
           {group.id === "spacing" ? (
             <SpacingBoxEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -318,6 +327,7 @@ function StyleGroupSection({
             />
           ) : group.id === "layout" ? (
             <LayoutPanelEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -326,6 +336,7 @@ function StyleGroupSection({
             />
           ) : group.id === "size" ? (
             <SizePanelEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -334,6 +345,7 @@ function StyleGroupSection({
             />
           ) : group.id === "position" ? (
             <PositionPanelEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -342,6 +354,7 @@ function StyleGroupSection({
             />
           ) : group.id === "typography" ? (
             <TypographyPanelEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -350,6 +363,7 @@ function StyleGroupSection({
             />
           ) : group.id === "backgrounds" ? (
             <BackgroundsPanelEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -358,6 +372,7 @@ function StyleGroupSection({
             />
           ) : group.id === "borders" ? (
             <BordersPanelEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}
@@ -367,6 +382,7 @@ function StyleGroupSection({
             />
           ) : group.id === "effects" ? (
             <EffectsPanelEditor
+              key={node.id}
               node={node}
               breakpoint={breakpoint}
               registry={registry}

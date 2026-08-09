@@ -28,7 +28,7 @@ import {
   POINTER_EVENTS_OPTIONS,
   type StyleField,
 } from "@/builder/styles/fields";
-import { resolveEffectiveStyleField } from "@/builder/styles/effective";
+import { readStyleField } from "@/builder/styles/style-field";
 import type { Breakpoint } from "@/builder/styles/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import { Input } from "@/components/ui/input";
@@ -43,23 +43,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Minus, MousePointer2, Plus, X } from "lucide-react";
 
-function fieldValue(
-  node: BuilderNode,
-  breakpoint: Breakpoint,
-  registry: ComponentRegistry,
-  declaration: Record<string, string | number>,
-  key: string,
-): { authored?: string | number; placeholder?: string } {
-  const authored = declaration[key];
-  if (authored !== undefined) {
-    return { authored };
-  }
-  const effective = resolveEffectiveStyleField(node, breakpoint, key, registry);
-  if (!effective || effective.source === "authored") {
-    return {};
-  }
-  return { placeholder: String(effective.value) };
-}
+/** Select sentinel that clears an authored value; Radix forbids "". */
+const CLEAR_VALUE = "__default__";
 
 function isHexColor(value: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(value.trim());
@@ -261,16 +246,16 @@ export function EffectsPanelEditor({
 }: EffectsPanelEditorProps) {
   const colorInputId = useId();
 
-  const blend = fieldValue(node, breakpoint, registry, declaration, "mixBlendMode");
-  const opacity = fieldValue(node, breakpoint, registry, declaration, "opacity");
-  const outlineRaw = fieldValue(node, breakpoint, registry, declaration, "outline");
-  const boxShadowRaw = fieldValue(node, breakpoint, registry, declaration, "boxShadow");
-  const transformRaw = fieldValue(node, breakpoint, registry, declaration, "transform");
-  const transitionRaw = fieldValue(node, breakpoint, registry, declaration, "transition");
-  const filterRaw = fieldValue(node, breakpoint, registry, declaration, "filter");
-  const backdropRaw = fieldValue(node, breakpoint, registry, declaration, "backdropFilter");
-  const cursor = fieldValue(node, breakpoint, registry, declaration, "cursor");
-  const pointerEvents = fieldValue(node, breakpoint, registry, declaration, "pointerEvents");
+  const blend = readStyleField(node, breakpoint, registry, declaration, "mixBlendMode");
+  const opacity = readStyleField(node, breakpoint, registry, declaration, "opacity");
+  const outlineRaw = readStyleField(node, breakpoint, registry, declaration, "outline");
+  const boxShadowRaw = readStyleField(node, breakpoint, registry, declaration, "boxShadow");
+  const transformRaw = readStyleField(node, breakpoint, registry, declaration, "transform");
+  const transitionRaw = readStyleField(node, breakpoint, registry, declaration, "transition");
+  const filterRaw = readStyleField(node, breakpoint, registry, declaration, "filter");
+  const backdropRaw = readStyleField(node, breakpoint, registry, declaration, "backdropFilter");
+  const cursor = readStyleField(node, breakpoint, registry, declaration, "cursor");
+  const pointerEvents = readStyleField(node, breakpoint, registry, declaration, "pointerEvents");
 
   const opacityPercent = parseOpacityPercent(opacity.authored ?? opacity.placeholder);
   const outline = parseOutline(
@@ -305,10 +290,15 @@ export function EffectsPanelEditor({
   const [editingFilter, setEditingFilter] = useState(filterText.trim().length > 0);
   const [editingBackdrop, setEditingBackdrop] = useState(backdropText.trim().length > 0);
 
+  /*
+   * Only the first shadow has controls, so the rest are carried through
+   * untouched. Serializing just the edited one silently deleted every
+   * additional comma-separated shadow on the node.
+   */
   const updateShadow = (next: ParsedBoxShadow) => {
     onFieldChange(
       { key: "boxShadow", label: "Box shadow", kind: "text" },
-      serializeBoxShadows([next]),
+      serializeBoxShadows([next, ...shadows.slice(1)]),
     );
   };
 
@@ -327,6 +317,7 @@ export function EffectsPanelEditor({
     );
   };
 
+  const shadowUnit = (shadow.unit || "px").toUpperCase();
   const outlineColorText = outline.color;
   const outlineColorPicker = isHexColor(outlineColorText) ? outlineColorText : "#2563eb";
 
@@ -344,7 +335,7 @@ export function EffectsPanelEditor({
                 kind: "select",
                 options: BLEND_MODE_OPTIONS,
               },
-              value === "normal" ? "" : value,
+              value === CLEAR_VALUE ? "" : value,
             )
           }
         >
@@ -352,6 +343,11 @@ export function EffectsPanelEditor({
             <SelectValue placeholder={blend.placeholder ?? "Normal"} />
           </SelectTrigger>
           <SelectContent>
+            {/* Writing "" for Normal deleted the declaration, so an inherited
+                blend mode could not be overridden back to normal. */}
+            <SelectItem value={CLEAR_VALUE} className="text-xs text-muted-foreground">
+              Default
+            </SelectItem>
             {BLEND_MODE_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value} className="text-xs">
                 {option.label}
@@ -506,16 +502,43 @@ export function EffectsPanelEditor({
             ))}
           </div>
         </div>
-        <SliderRow label="X" value={shadow.x} min={-64} max={64} onChange={(x) => updateShadow({ ...shadow, x })} />
-        <SliderRow label="Y" value={shadow.y} min={-64} max={64} onChange={(y) => updateShadow({ ...shadow, y })} />
-        <SliderRow label="Blur" value={shadow.blur} min={0} max={64} onChange={(blur) => updateShadow({ ...shadow, blur })} />
-        <SliderRow label="Size" value={shadow.spread} min={0} max={64} onChange={(spread) => updateShadow({ ...shadow, spread })} />
+        {/*
+          A shadow built from calc() or var() has no numbers for the sliders to
+          hold, so it is edited as text. Feeding it to the sliders showed four
+          zeros and overwrote the expression on the first drag.
+        */}
+        {shadow.raw ? (
+          <div className="space-y-1">
+            <Label className="text-[11px] font-medium text-muted-foreground">Value</Label>
+            <Input
+              type="text"
+              className="h-8 text-xs"
+              value={shadow.raw}
+              onChange={(event) =>
+                onFieldChange(
+                  { key: "boxShadow", label: "Box shadow", kind: "text" },
+                  [event.target.value, ...shadows.slice(1).map(serializeBoxShadow)].join(", "),
+                )
+              }
+            />
+            <p className="text-[10px] leading-snug text-muted-foreground">
+              This shadow uses an expression, so it is edited directly.
+            </p>
+          </div>
+        ) : (
+          <>
+            <SliderRow label="X" value={shadow.x} min={-64} max={64} unit={shadowUnit} onChange={(x) => updateShadow({ ...shadow, x })} />
+            <SliderRow label="Y" value={shadow.y} min={-64} max={64} unit={shadowUnit} onChange={(y) => updateShadow({ ...shadow, y })} />
+            <SliderRow label="Blur" value={shadow.blur} min={0} max={64} unit={shadowUnit} onChange={(blur) => updateShadow({ ...shadow, blur })} />
+            <SliderRow label="Size" value={shadow.spread} min={0} max={64} unit={shadowUnit} onChange={(spread) => updateShadow({ ...shadow, spread })} />
+          </>
+        )}
         <div className="space-y-1.5">
           <Label className="text-[11px] font-medium text-muted-foreground">Color</Label>
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5">
             <input
               type="color"
-              value={isHexColor(shadow.color) ? shadow.color : "#000000"}
+              value={shadow.color && isHexColor(shadow.color) ? shadow.color : "#000000"}
               aria-label="Shadow color swatch"
               className="h-7 w-7 shrink-0 cursor-pointer rounded border border-border bg-transparent p-0.5"
               onChange={(event) => updateShadow({ ...shadow, color: event.target.value })}
@@ -523,7 +546,8 @@ export function EffectsPanelEditor({
             <Input
               type="text"
               className="h-7 flex-1 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
-              value={shadow.color}
+              placeholder="currentColor"
+              value={shadow.color ?? ""}
               onChange={(event) => updateShadow({ ...shadow, color: event.target.value })}
             />
           </div>

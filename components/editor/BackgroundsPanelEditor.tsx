@@ -7,7 +7,7 @@ import {
   BACKGROUND_SIZE_OPTIONS,
   type StyleField,
 } from "@/builder/styles/fields";
-import { resolveEffectiveStyleField } from "@/builder/styles/effective";
+import { readStyleField } from "@/builder/styles/style-field";
 import { defaultTokens } from "@/builder/styles/tokens";
 import type { Breakpoint } from "@/builder/styles/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
@@ -37,27 +37,6 @@ const GRADIENT_PRESETS = [
     value: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)",
   },
 ] as const;
-
-function fieldValue(
-  node: BuilderNode,
-  breakpoint: Breakpoint,
-  registry: ComponentRegistry,
-  declaration: Record<string, string | number>,
-  key: string,
-): { authored?: string | number; placeholder?: string; inherited?: boolean } {
-  const authored = declaration[key];
-  if (authored !== undefined) {
-    return { authored };
-  }
-  const effective = resolveEffectiveStyleField(node, breakpoint, key, registry);
-  if (!effective || effective.source === "authored") {
-    return {};
-  }
-  return {
-    placeholder: String(effective.value),
-    inherited: true,
-  };
-}
 
 function summarizeBackgroundImage(value: string): string {
   const trimmed = value.trim();
@@ -103,17 +82,17 @@ export function BackgroundsPanelEditor({
   const colorInputId = useId();
   const imageInputId = useId();
 
-  const image = fieldValue(node, breakpoint, registry, declaration, "backgroundImage");
+  const image = readStyleField(node, breakpoint, registry, declaration, "backgroundImage");
   const imageAuthored = image.authored !== undefined ? String(image.authored) : "";
   const hasImage = imageAuthored.trim().length > 0;
 
-  const color = fieldValue(node, breakpoint, registry, declaration, "backgroundColor");
+  const color = readStyleField(node, breakpoint, registry, declaration, "backgroundColor");
   const colorText = color.authored !== undefined ? String(color.authored) : "";
   const colorPickerValue = isHexColor(colorText) ? colorText : "#ffffff";
 
-  const size = fieldValue(node, breakpoint, registry, declaration, "backgroundSize");
-  const position = fieldValue(node, breakpoint, registry, declaration, "backgroundPosition");
-  const repeat = fieldValue(node, breakpoint, registry, declaration, "backgroundRepeat");
+  const size = readStyleField(node, breakpoint, registry, declaration, "backgroundSize");
+  const position = readStyleField(node, breakpoint, registry, declaration, "backgroundPosition");
+  const repeat = readStyleField(node, breakpoint, registry, declaration, "backgroundRepeat");
 
   const [editingImage, setEditingImage] = useState(hasImage);
   const [showMore, setShowMore] = useState(hasImage);

@@ -1,110 +1,21 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId } from "react";
 import type { BuilderNode } from "@/builder/document/types";
 import { BORDER_STYLE_OPTIONS, expandBorderRadiusShorthand, type StyleField } from "@/builder/styles/fields";
 import { BorderRadiusEditor } from "@/components/editor/BorderRadiusEditor";
-import { resolveEffectiveStyleField } from "@/builder/styles/effective";
+import { DimensionField } from "@/components/editor/DimensionField";
+import { SegmentBar, SegmentButton } from "@/components/editor/SegmentBar";
+import { readStyleField, styleFieldValue } from "@/builder/styles/style-field";
 import { defaultTokens } from "@/builder/styles/tokens";
 import type { Breakpoint } from "@/builder/styles/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import { Minus, X } from "lucide-react";
-
-function fieldValue(
-  node: BuilderNode,
-  breakpoint: Breakpoint,
-  registry: ComponentRegistry,
-  declaration: Record<string, string | number>,
-  key: string,
-): { authored?: string | number; placeholder?: string; inherited?: boolean } {
-  const authored = declaration[key];
-  if (authored !== undefined) {
-    return { authored };
-  }
-  const effective = resolveEffectiveStyleField(node, breakpoint, key, registry);
-  if (!effective || effective.source === "authored") {
-    return {};
-  }
-  return {
-    placeholder: String(effective.value),
-    inherited: true,
-  };
-}
-
-function parsePx(value: string | number | undefined): string {
-  if (value === undefined) {
-    return "";
-  }
-  const text = String(value).trim();
-  if (text.endsWith("px")) {
-    return text.slice(0, -2);
-  }
-  return text;
-}
-
-function toPx(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (trimmed.endsWith("px") || trimmed.endsWith("%")) {
-    return trimmed;
-  }
-  return `${trimmed}px`;
-}
 
 function isHexColor(value: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(value.trim());
-}
-
-function SegmentBar({
-  label,
-  children,
-}: {
-  readonly label: string;
-  readonly children: ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
-      <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function SegmentButton({
-  title,
-  active,
-  onClick,
-  children,
-}: {
-  readonly title: string;
-  readonly active: boolean;
-  readonly onClick: () => void;
-  readonly children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "flex h-7 min-w-[2.25rem] flex-1 items-center justify-center rounded transition-colors",
-        active
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
 }
 
 function DashedLineIcon({ className }: { readonly className?: string }) {
@@ -150,12 +61,23 @@ export function BordersPanelEditor({
   const colorInputId = useId();
   const radiusDeclaration = expandBorderRadiusShorthand(declaration);
 
-  const style = fieldValue(node, breakpoint, registry, declaration, "borderStyle");
-  const width = fieldValue(node, breakpoint, registry, declaration, "borderWidth");
-  const color = fieldValue(node, breakpoint, registry, declaration, "borderColor");
+  const read = (key: string) => readStyleField(node, breakpoint, registry, declaration, key);
+  const style = read("borderStyle");
+  const width = read("borderWidth");
+  const color = read("borderColor");
 
-  const styleValue =
-    style.authored !== undefined ? String(style.authored) : "none";
+  /*
+   * The value in force, not a hardcoded "none": a border set on Mobile is still
+   * in force on Tablet, and reading only this breakpoint's declaration showed
+   * None as active on elements that had a visible border.
+   */
+  const styleValue = styleFieldValue(style, "none");
+  const borderStyleField: StyleField = {
+    key: "borderStyle",
+    label: "Style",
+    kind: "select",
+    options: BORDER_STYLE_OPTIONS,
+  };
   const colorText = color.authored !== undefined ? String(color.authored) : "";
   const colorPickerValue = isHexColor(colorText) ? colorText : "#000000";
 
@@ -172,7 +94,12 @@ export function BordersPanelEditor({
       <div className="space-y-3 rounded-md border border-border/70 bg-muted/10 p-2.5">
         <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Borders</p>
 
-        <SegmentBar label="Style">
+        <SegmentBar
+          label="Style"
+          inherited={style.inherited}
+          sourceLabel={style.sourceLabel}
+          onClear={style.authored !== undefined ? () => onFieldChange(borderStyleField, "") : undefined}
+        >
           {BORDER_STYLE_OPTIONS.map((option) => {
             const Icon = STYLE_ICONS[option.value as keyof typeof STYLE_ICONS];
             return (
@@ -180,17 +107,8 @@ export function BordersPanelEditor({
                 key={option.value}
                 title={option.label}
                 active={styleValue === option.value}
-                onClick={() =>
-                  onFieldChange(
-                    {
-                      key: "borderStyle",
-                      label: "Style",
-                      kind: "select",
-                      options: BORDER_STYLE_OPTIONS,
-                    },
-                    option.value,
-                  )
-                }
+                inherited={style.inherited}
+                onClick={() => onFieldChange(borderStyleField, option.value)}
               >
                 {Icon ? <Icon className="h-3.5 w-3.5" /> : option.label}
               </SegmentButton>
@@ -198,25 +116,15 @@ export function BordersPanelEditor({
           })}
         </SegmentBar>
 
-        <div className="space-y-1">
-          <Label className="text-[11px] font-medium text-muted-foreground">Width</Label>
-          <div className="flex items-center gap-1">
-            <Input
-              type="text"
-              inputMode="decimal"
-              className="h-8 min-w-0 flex-1 text-xs"
-              placeholder={width.placeholder ? parsePx(width.placeholder) : "0"}
-              value={width.authored !== undefined ? parsePx(width.authored) : ""}
-              onChange={(event) =>
-                onFieldChange(
-                  { key: "borderWidth", label: "Width", kind: "dimension" },
-                  toPx(event.target.value),
-                )
-              }
-            />
-            <span className="shrink-0 text-[10px] font-medium uppercase text-muted-foreground">PX</span>
-          </div>
-        </div>
+        <DimensionField
+          spec={{ key: "borderWidth", label: "Width", defaultUnit: "px" }}
+          authored={width.authored}
+          placeholder={width.placeholder}
+          inherited={width.inherited}
+          onChange={(value) =>
+            onFieldChange({ key: "borderWidth", label: "Width", kind: "dimension" }, value)
+          }
+        />
 
         <div className="space-y-1.5">
           <Label htmlFor={colorInputId} className="text-[11px] font-medium text-muted-foreground">

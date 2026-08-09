@@ -6,7 +6,7 @@ import {
   TEXT_ALIGN_OPTIONS,
   type StyleField,
 } from "@/builder/styles/fields";
-import { resolveEffectiveStyleField } from "@/builder/styles/effective";
+import { readStyleField } from "@/builder/styles/style-field";
 import type { Breakpoint } from "@/builder/styles/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import { DimensionField } from "@/components/editor/DimensionField";
@@ -52,27 +52,6 @@ const ALIGN_ICONS = {
   right: AlignRight,
   justify: AlignJustify,
 } as const;
-
-function fieldValue(
-  node: BuilderNode,
-  breakpoint: Breakpoint,
-  registry: ComponentRegistry,
-  declaration: Record<string, string | number>,
-  key: string,
-): { authored?: string | number; placeholder?: string; inherited?: boolean } {
-  const authored = declaration[key];
-  if (authored !== undefined) {
-    return { authored };
-  }
-  const effective = resolveEffectiveStyleField(node, breakpoint, key, registry);
-  if (!effective || effective.source === "authored") {
-    return {};
-  }
-  return {
-    placeholder: String(effective.value),
-    inherited: true,
-  };
-}
 
 function SegmentBar({
   label,
@@ -139,15 +118,15 @@ export function TypographyPanelEditor({
   const [showMore, setShowMore] = useState(false);
   const [customFont, setCustomFont] = useState(false);
 
-  const font = fieldValue(node, breakpoint, registry, declaration, "fontFamily");
+  const font = readStyleField(node, breakpoint, registry, declaration, "fontFamily");
   const fontAuthored = font.authored !== undefined ? String(font.authored) : "";
   const fontMatch = FONT_OPTIONS.find((option) => option.value === fontAuthored);
 
-  const weight = fieldValue(node, breakpoint, registry, declaration, "fontWeight");
-  const size = fieldValue(node, breakpoint, registry, declaration, "fontSize");
-  const lineHeight = fieldValue(node, breakpoint, registry, declaration, "lineHeight");
-  const color = fieldValue(node, breakpoint, registry, declaration, "color");
-  const letterSpacing = fieldValue(node, breakpoint, registry, declaration, "letterSpacing");
+  const weight = readStyleField(node, breakpoint, registry, declaration, "fontWeight");
+  const size = readStyleField(node, breakpoint, registry, declaration, "fontSize");
+  const lineHeight = readStyleField(node, breakpoint, registry, declaration, "lineHeight");
+  const color = readStyleField(node, breakpoint, registry, declaration, "color");
+  const letterSpacing = readStyleField(node, breakpoint, registry, declaration, "letterSpacing");
 
   const textAlign = declaration.textAlign !== undefined ? String(declaration.textAlign) : "left";
   const textDecoration =

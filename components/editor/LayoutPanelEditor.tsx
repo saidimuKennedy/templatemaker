@@ -1,20 +1,21 @@
 "use client";
 
-import { type ReactNode } from "react";
 import type { BuilderNode } from "@/builder/document/types";
 import {
   ALIGN_OPTIONS,
   FLEX_DIRECTION_OPTIONS,
   FLEX_WRAP_OPTIONS,
   JUSTIFY_OPTIONS,
+  DISPLAY_OPTIONS,
   OVERFLOW_DISPLAY_OPTIONS,
   PRIMARY_DISPLAY_OPTIONS,
   type StyleField,
 } from "@/builder/styles/fields";
-import { resolveEffectiveStyleField } from "@/builder/styles/effective";
+import { readStyleField, styleFieldValue } from "@/builder/styles/style-field";
 import type { Breakpoint } from "@/builder/styles/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import { DimensionField } from "@/components/editor/DimensionField";
+import { SegmentBar, SegmentButton } from "@/components/editor/SegmentBar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,44 +37,11 @@ import {
   Baseline,
   ChevronDown,
   EyeOff,
+  RotateCcw,
   StretchHorizontal,
   Type,
 } from "lucide-react";
 
-function fieldValue(
-  node: BuilderNode,
-  breakpoint: Breakpoint,
-  registry: ComponentRegistry,
-  declaration: Record<string, string | number>,
-  key: string,
-): { authored?: string | number; placeholder?: string; inherited?: boolean } {
-  const authored = declaration[key];
-  if (authored !== undefined) {
-    return { authored };
-  }
-  const effective = resolveEffectiveStyleField(node, breakpoint, key, registry);
-  if (!effective || effective.source === "authored") {
-    return {};
-  }
-  return {
-    placeholder: String(effective.value),
-    inherited: true,
-  };
-}
-
-function resolveDisplay(
-  node: BuilderNode,
-  breakpoint: Breakpoint,
-  registry: ComponentRegistry,
-  declaration: Record<string, string | number>,
-): string {
-  const authored = declaration.display;
-  if (authored !== undefined) {
-    return String(authored);
-  }
-  const effective = resolveEffectiveStyleField(node, breakpoint, "display", registry);
-  return effective ? String(effective.value) : "block";
-}
 
 function isFlexDisplay(display: string): boolean {
   return display === "flex" || display === "inline-flex";
@@ -203,56 +171,6 @@ const ALIGN_ICONS = {
   baseline: Baseline,
 } as const;
 
-function SegmentBar({
-  label,
-  children,
-}: {
-  readonly label: string;
-  readonly children: ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-[11px] font-medium text-muted-foreground">{label}</Label>
-      <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function SegmentButton({
-  title,
-  active,
-  onClick,
-  children,
-  className,
-}: {
-  readonly title: string;
-  readonly active: boolean;
-  readonly onClick: () => void;
-  readonly children: ReactNode;
-  readonly className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "flex h-7 min-w-[2.25rem] flex-1 items-center justify-center rounded transition-colors",
-        active
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 type LayoutPanelEditorProps = {
   readonly node: BuilderNode;
   readonly breakpoint: Breakpoint;
@@ -268,38 +186,83 @@ export function LayoutPanelEditor({
   declaration,
   onFieldChange,
 }: LayoutPanelEditorProps) {
-  const display = resolveDisplay(node, breakpoint, registry, declaration);
+  const read = (key: string) => readStyleField(node, breakpoint, registry, declaration, key);
+
+  const displayState = read("display");
+  const display = styleFieldValue(displayState, "block");
   const overflowSelected = OVERFLOW_DISPLAY_OPTIONS.some((option) => option.value === display);
 
-  const flexDirection = fieldValue(node, breakpoint, registry, declaration, "flexDirection");
-  const justify = fieldValue(node, breakpoint, registry, declaration, "justifyContent");
-  const align = fieldValue(node, breakpoint, registry, declaration, "alignItems");
-  const wrap = fieldValue(node, breakpoint, registry, declaration, "flexWrap");
-  const gap = fieldValue(node, breakpoint, registry, declaration, "gap");
-  const gridColumns = fieldValue(node, breakpoint, registry, declaration, "gridTemplateColumns");
+  const flexDirection = read("flexDirection");
+  const justify = read("justifyContent");
+  const align = read("alignItems");
+  const wrap = read("flexWrap");
+  const gap = read("gap");
+  const gridColumns = read("gridTemplateColumns");
 
-  const flexDirectionValue =
-    flexDirection.authored !== undefined
-      ? String(flexDirection.authored)
-      : flexDirection.placeholder ?? "row";
-  const justifyValue =
-    justify.authored !== undefined ? String(justify.authored) : justify.placeholder ?? "flex-start";
-  const alignValue =
-    align.authored !== undefined ? String(align.authored) : align.placeholder ?? "stretch";
-  const wrapValue =
-    wrap.authored !== undefined ? String(wrap.authored) : wrap.placeholder ?? "nowrap";
+  const flexDirectionValue = styleFieldValue(flexDirection, "row");
+  const justifyValue = styleFieldValue(justify, "flex-start");
+  const alignValue = styleFieldValue(align, "stretch");
+  const wrapValue = styleFieldValue(wrap, "nowrap");
 
-  const setDisplay = (value: string) => {
-    onFieldChange(
-      { key: "display", label: "Display", kind: "select", options: PRIMARY_DISPLAY_OPTIONS },
-      value === "block" ? "" : value,
-    );
+  /*
+   * Every option writes its own value, including the CSS default. Writing "" for
+   * the default deleted the declaration, and since the control reads the
+   * effective value, a component default or a smaller breakpoint put the old
+   * value straight back — the button never latched. Clearing is the explicit
+   * reset on each bar instead.
+   */
+  const set = (field: StyleField, value: string) => onFieldChange(field, value);
+  const clear = (field: StyleField) => onFieldChange(field, "");
+
+  const displayField: StyleField = {
+    key: "display",
+    label: "Display",
+    kind: "select",
+    options: DISPLAY_OPTIONS,
   };
+  const directionField: StyleField = {
+    key: "flexDirection",
+    label: "Direction",
+    kind: "select",
+    options: FLEX_DIRECTION_OPTIONS,
+  };
+  const justifyField: StyleField = {
+    key: "justifyContent",
+    label: "Justify",
+    kind: "select",
+    options: JUSTIFY_OPTIONS,
+  };
+  const alignField: StyleField = {
+    key: "alignItems",
+    label: "Align",
+    kind: "select",
+    options: ALIGN_OPTIONS,
+  };
+  const wrapField: StyleField = {
+    key: "flexWrap",
+    label: "Wrap",
+    kind: "select",
+    options: FLEX_WRAP_OPTIONS,
+  };
+  const gapField: StyleField = { key: "gap", label: "Gap", kind: "spacing" };
 
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label className="text-[11px] font-medium text-muted-foreground">Display</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-[11px] font-medium text-muted-foreground">Display</Label>
+          {displayState.authored !== undefined ? (
+            <button
+              type="button"
+              title="Clear display override"
+              aria-label="Clear display override"
+              onClick={() => clear(displayField)}
+              className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </button>
+          ) : null}
+        </div>
         <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
           {PRIMARY_DISPLAY_OPTIONS.map((option) => {
             const Icon = PRIMARY_DISPLAY_ICONS[option.value as keyof typeof PRIMARY_DISPLAY_ICONS];
@@ -308,7 +271,8 @@ export function LayoutPanelEditor({
                 key={option.value}
                 title={option.label}
                 active={display === option.value}
-                onClick={() => setDisplay(option.value)}
+                inherited={displayState.inherited}
+                onClick={() => set(displayField, option.value)}
                 className="gap-1 px-2 text-[10px] font-medium"
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -340,7 +304,7 @@ export function LayoutPanelEditor({
                   <DropdownMenuItem
                     key={option.value}
                     className={cn("gap-2 text-xs", display === option.value && "bg-muted")}
-                    onClick={() => setDisplay(option.value)}
+                    onClick={() => set(displayField, option.value)}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     {option.label}
@@ -350,11 +314,21 @@ export function LayoutPanelEditor({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        {displayState.inherited && displayState.sourceLabel ? (
+          <p className="text-[10px] italic leading-snug text-muted-foreground/80">
+            {displayState.sourceLabel}
+          </p>
+        ) : null}
       </div>
 
       {isFlexDisplay(display) ? (
         <div className="space-y-3 rounded-md border border-border/70 bg-muted/10 p-2.5">
-          <SegmentBar label="Direction">
+          <SegmentBar
+            label="Direction"
+            inherited={flexDirection.inherited}
+            sourceLabel={flexDirection.sourceLabel}
+            onClear={flexDirection.authored !== undefined ? () => clear(directionField) : undefined}
+          >
             {FLEX_DIRECTION_OPTIONS.map((option) => {
               const Icon = DIRECTION_ICONS[option.value as keyof typeof DIRECTION_ICONS];
               return (
@@ -362,17 +336,8 @@ export function LayoutPanelEditor({
                   key={option.value}
                   title={option.label}
                   active={flexDirectionValue === option.value}
-                  onClick={() =>
-                    onFieldChange(
-                      {
-                        key: "flexDirection",
-                        label: "Direction",
-                        kind: "select",
-                        options: FLEX_DIRECTION_OPTIONS,
-                      },
-                      option.value === "row" ? "" : option.value,
-                    )
-                  }
+                  inherited={flexDirection.inherited}
+                  onClick={() => set(directionField, option.value)}
                 >
                   <Icon />
                 </SegmentButton>
@@ -380,7 +345,12 @@ export function LayoutPanelEditor({
             })}
           </SegmentBar>
 
-          <SegmentBar label="Justify">
+          <SegmentBar
+            label="Justify"
+            inherited={justify.inherited}
+            sourceLabel={justify.sourceLabel}
+            onClear={justify.authored !== undefined ? () => clear(justifyField) : undefined}
+          >
             {JUSTIFY_OPTIONS.map((option) => {
               const Icon = JUSTIFY_ICONS[option.value as keyof typeof JUSTIFY_ICONS];
               return (
@@ -388,17 +358,8 @@ export function LayoutPanelEditor({
                   key={option.value}
                   title={`Justify ${option.label}`}
                   active={justifyValue === option.value}
-                  onClick={() =>
-                    onFieldChange(
-                      {
-                        key: "justifyContent",
-                        label: "Justify",
-                        kind: "select",
-                        options: JUSTIFY_OPTIONS,
-                      },
-                      option.value === "flex-start" ? "" : option.value,
-                    )
-                  }
+                  inherited={justify.inherited}
+                  onClick={() => set(justifyField, option.value)}
                 >
                   {Icon ? <Icon className="h-3.5 w-3.5" /> : option.label}
                 </SegmentButton>
@@ -406,7 +367,12 @@ export function LayoutPanelEditor({
             })}
           </SegmentBar>
 
-          <SegmentBar label="Align items">
+          <SegmentBar
+            label="Align items"
+            inherited={align.inherited}
+            sourceLabel={align.sourceLabel}
+            onClear={align.authored !== undefined ? () => clear(alignField) : undefined}
+          >
             {ALIGN_OPTIONS.map((option) => {
               const Icon = ALIGN_ICONS[option.value as keyof typeof ALIGN_ICONS];
               return (
@@ -414,17 +380,8 @@ export function LayoutPanelEditor({
                   key={option.value}
                   title={`Align ${option.label}`}
                   active={alignValue === option.value}
-                  onClick={() =>
-                    onFieldChange(
-                      {
-                        key: "alignItems",
-                        label: "Align",
-                        kind: "select",
-                        options: ALIGN_OPTIONS,
-                      },
-                      option.value === "stretch" ? "" : option.value,
-                    )
-                  }
+                  inherited={align.inherited}
+                  onClick={() => set(alignField, option.value)}
                 >
                   {Icon ? <Icon className="h-3.5 w-3.5" /> : option.label}
                 </SegmentButton>
@@ -432,23 +389,19 @@ export function LayoutPanelEditor({
             })}
           </SegmentBar>
 
-          <SegmentBar label="Wrap">
+          <SegmentBar
+            label="Wrap"
+            inherited={wrap.inherited}
+            sourceLabel={wrap.sourceLabel}
+            onClear={wrap.authored !== undefined ? () => clear(wrapField) : undefined}
+          >
             {FLEX_WRAP_OPTIONS.map((option) => (
               <SegmentButton
                 key={option.value}
                 title={option.label}
                 active={wrapValue === option.value}
-                onClick={() =>
-                  onFieldChange(
-                    {
-                      key: "flexWrap",
-                      label: "Wrap",
-                      kind: "select",
-                      options: FLEX_WRAP_OPTIONS,
-                    },
-                    option.value === "nowrap" ? "" : option.value,
-                  )
-                }
+                inherited={wrap.inherited}
+                onClick={() => set(wrapField, option.value)}
               >
                 <span className="text-[10px]">{option.label.replace(" wrap", "")}</span>
               </SegmentButton>
@@ -460,9 +413,7 @@ export function LayoutPanelEditor({
             authored={gap.authored}
             placeholder={gap.placeholder}
             inherited={gap.inherited}
-            onChange={(value) =>
-              onFieldChange({ key: "gap", label: "Gap", kind: "spacing" }, value)
-            }
+            onChange={(value) => onFieldChange(gapField, value)}
           />
         </div>
       ) : null}
@@ -496,9 +447,7 @@ export function LayoutPanelEditor({
             authored={gap.authored}
             placeholder={gap.placeholder}
             inherited={gap.inherited}
-            onChange={(value) =>
-              onFieldChange({ key: "gap", label: "Gap", kind: "spacing" }, value)
-            }
+            onChange={(value) => onFieldChange(gapField, value)}
           />
         </div>
       ) : null}
