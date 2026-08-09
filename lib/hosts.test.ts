@@ -12,6 +12,7 @@ describe("host routing helpers", () => {
   it("extracts the slug from a site host", () => {
     vi.stubEnv("SITES_HOST", "sites.localhost:3000");
     expect(extractSiteSlug("alice.sites.localhost:3000")).toBe("alice");
+    expect(extractSiteSlug("Alice.sites.localhost:3000")).toBe("alice");
     expect(extractSiteSlug("sites.localhost:3000")).toBeNull();
   });
 
@@ -36,7 +37,7 @@ describe("host routing helpers", () => {
       slug: "alice",
       sitePath: "",
     });
-    expect(appOriginPublishedRedirect("/p/alice/work")).toEqual({
+    expect(appOriginPublishedRedirect("/p/Alice/work")).toEqual({
       slug: "alice",
       sitePath: "/work",
     });

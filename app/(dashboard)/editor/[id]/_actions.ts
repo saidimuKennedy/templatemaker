@@ -19,7 +19,7 @@ import {
 } from "@/lib/builder";
 import { AI_RATE_LIMITS, checkAIRateLimit, recordAIRequest } from "@/lib/ai/rate-limit";
 import { prisma } from "@/lib/db";
-import { generateSlug } from "@/lib/slug";
+import { generateSlug, normalizePortfolioSlug } from "@/lib/slug";
 import { syncResourcesForPortfolio } from "@/lib/app-runtime/records";
 
 /**
@@ -193,7 +193,7 @@ export async function publishPortfolio(portfolioId: string): Promise<PublishPort
   }
 
   const displayName = getProfileHeaderName(document) || portfolio.title;
-  const slug = portfolio.slug ?? (await generateSlug(displayName));
+  const slug = normalizePortfolioSlug(portfolio.slug ?? (await generateSlug(displayName)));
 
   await prisma.portfolio.update({
     where: { id: portfolioId },

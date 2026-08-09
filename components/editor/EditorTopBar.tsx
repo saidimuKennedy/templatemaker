@@ -18,11 +18,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ChevronDown, Copy, EyeOff, ExternalLink, LayoutGrid, Play, Redo2, Undo2 } from "lucide-react";
+import { ChevronDown, Copy, Database, EyeOff, ExternalLink, ListTree, Play, Redo2, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type LeftPanelTab = "navigator" | "resources";
+
 type EditorTopBarProps = {
-  readonly status: string;
+  readonly leftPanelTab: LeftPanelTab;
+  readonly onLeftPanelTabChange: (tab: LeftPanelTab) => void;
   readonly viewport: Breakpoint;
   readonly onViewportChange: (value: Breakpoint) => void;
   readonly canUndo: boolean;
@@ -39,19 +42,9 @@ type EditorTopBarProps = {
   readonly canPreview: boolean;
 };
 
-function statusLabel(status: string, isPublished: boolean): string {
-  if (isPublished) {
-    return "Published";
-  }
-  const normalized = status.trim().toLowerCase();
-  if (normalized === "draft" || normalized === "unpublished") {
-    return "Unpublished";
-  }
-  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-}
-
 export function EditorTopBar({
-  status,
+  leftPanelTab,
+  onLeftPanelTabChange,
   viewport,
   onViewportChange,
   canUndo,
@@ -67,8 +60,6 @@ export function EditorTopBar({
   isPublished,
   canPreview,
 }: EditorTopBarProps) {
-  const label = statusLabel(status, isPublished);
-
   return (
     <TooltipProvider delayDuration={400}>
       <div
@@ -76,18 +67,43 @@ export function EditorTopBar({
         aria-label="Editor"
         className="grid h-11 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border bg-card px-3 md:px-4"
       >
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground">
-            <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
-          </span>
-          <span
-            className={cn(
-              "truncate text-sm font-medium",
-              isPublished ? "text-foreground" : "text-muted-foreground",
-            )}
+        <div className="flex min-w-0 items-center">
+          <div
+            role="tablist"
+            aria-label="Left panel"
+            className="inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5"
           >
-            {label}
-          </span>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftPanelTab === "navigator"}
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors",
+                leftPanelTab === "navigator"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => onLeftPanelTabChange("navigator")}
+            >
+              <ListTree className="h-3.5 w-3.5" aria-hidden="true" />
+              Navigator
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftPanelTab === "resources"}
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors",
+                leftPanelTab === "resources"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => onLeftPanelTabChange("resources")}
+            >
+              <Database className="h-3.5 w-3.5" aria-hidden="true" />
+              Data
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 max-md:scale-90">

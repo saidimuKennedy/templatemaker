@@ -7,7 +7,7 @@ import {
   resolvePageByPath,
   validatePortfolioDocument,
 } from "@/lib/builder";
-import { prisma } from "@/lib/db";
+import { findPublishedPortfolioBySlug } from "@/lib/slug";
 
 export const revalidate = false;
 
@@ -18,9 +18,7 @@ type EmbedPageProps = {
 export default async function EmbedPortfolioPage({ params }: EmbedPageProps) {
   const { slug, path } = await params;
 
-  const portfolio = await prisma.portfolio.findFirst({
-    where: { slug: { equals: slug, mode: "insensitive" }, status: "PUBLISHED" },
-  });
+  const portfolio = await findPublishedPortfolioBySlug(slug);
 
   if (!portfolio) {
     notFound();

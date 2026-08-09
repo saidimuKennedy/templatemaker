@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   DEFAULT_RESOURCE_PERMISSIONS,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2 } from "lucide-react";
+import { RESOURCES_DATA_TAB_DOC_PATH } from "@/lib/dev-docs/constants";
 
 type ResourcesPanelEditorProps = {
   readonly document: BuilderDocument;
@@ -93,7 +95,7 @@ export function ResourcesPanelEditor({ document, onCommand }: ResourcesPanelEdit
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-r border-border bg-card">
+    <div className="flex h-full min-h-0 flex-col bg-card">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Resources
@@ -240,6 +242,30 @@ export function ResourcesPanelEditor({ document, onCommand }: ResourcesPanelEdit
               </Select>
             </div>
 
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="resource-public-read">Public read access</Label>
+                <Switch
+                  id="resource-public-read"
+                  checked={(draft.permissions?.read ?? DEFAULT_RESOURCE_PERMISSIONS.read) === "public"}
+                  onCheckedChange={(checked) =>
+                    setDraft({
+                      ...draft,
+                      permissions: {
+                        ...DEFAULT_RESOURCE_PERMISSIONS,
+                        ...draft.permissions,
+                        read: checked ? "public" : "none",
+                      },
+                    })
+                  }
+                />
+              </div>
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                When enabled, anyone can list all records via{" "}
+                <code className="text-[10px]">GET /api/records/{draft.name || "…"}</code>.
+              </p>
+            </div>
+
             <div className="flex gap-2">
               <Button type="button" size="sm" onClick={commitDraft}>
                 Save resource
@@ -250,6 +276,20 @@ export function ResourcesPanelEditor({ document, onCommand }: ResourcesPanelEdit
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="shrink-0 border-t border-border px-3 py-2.5">
+        <p className="text-xs font-medium text-foreground">Need help?</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          <Link
+            href={RESOURCES_DATA_TAB_DOC_PATH}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Resources &amp; Data tab guide
+          </Link>
+        </p>
       </div>
     </div>
   );

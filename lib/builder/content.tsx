@@ -140,7 +140,18 @@ function renderResponsivePage(
   const content = (
     <Fragment>
       {stylesheet ? (
-        <style nonce={styleNonce} dangerouslySetInnerHTML={{ __html: stylesheet }} />
+        // suppressHydrationWarning is load-bearing, not a papered-over bug.
+        // Browsers blank the `nonce` CONTENT attribute after parsing so it
+        // cannot be read back out via CSS attribute selectors, while keeping
+        // the IDL property for CSP checks. React hydrates by comparing the
+        // attribute, so it sees nonce="" on the client against the real value
+        // in the server HTML and reports a mismatch on every published page.
+        // The element is fine — CSP validates it and the rules apply.
+        <style
+          nonce={styleNonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: stylesheet }}
+        />
       ) : null}
       {tree}
     </Fragment>

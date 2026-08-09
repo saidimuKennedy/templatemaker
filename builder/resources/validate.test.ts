@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultPermissionsForResource } from "@/builder/resources/validate";
 import { validateResources } from "@/builder/resources/validate";
 import type { ResourceDefinition } from "@/builder/resources/types";
 
@@ -28,5 +29,14 @@ describe("validateResources", () => {
       },
     ]);
     expect(result.valid).toBe(false);
+  });
+
+  it("defaults read permission to none when omitted", () => {
+    const permissions = defaultPermissionsForResource({
+      name: "messages",
+      fields: [{ name: "email", type: "email", required: true }],
+    });
+    expect(permissions.read).toBe("none");
+    expect(permissions.create).toBe("public");
   });
 });

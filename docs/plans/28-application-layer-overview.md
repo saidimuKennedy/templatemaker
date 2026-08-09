@@ -19,6 +19,13 @@ is binding on every plan in this set.** Read it first. Its four contracts
 — Binding, Action, scoped client runtime, runtime-values-are-not-document-state
 — are settled; plans implement them, they do not relitigate them.
 
+**[ADR-013](../decisions/ADR-013-storage-agnostic-documents.md) is binding
+from Plan 32 onward.** A document declares the *shape* of data, never its
+*location*: no connection, host, table, endpoint, or database identifier
+may appear in any document structure. That property is what keeps a future
+customer-owned or dedicated database a server-side change instead of a
+migration of user content.
+
 Two rules from ADR-012 that plans get wrong if they skim:
 
 1. **Existing portfolios must keep shipping zero JavaScript.** The client
@@ -110,13 +117,14 @@ platform session cookie cannot be shadowed or read from a published page.
 
 ### 31 — Resources & the API layer
 Prisma `Resource` + `Record`; resource definitions as project-level
-document data; `POST/GET/PATCH/DELETE /api/apps/[slug]/records/[resource]`;
+document data; `POST/GET/PATCH/DELETE /api/records/[resource]` on the site
+origin, with the project slug taken from the **host**, never the path;
 Zod validation derived from the resource definition; per-project rate
 limiting; spam/honeypot handling on public writes.
 **Exit:** a resource defined in the builder is queryable and writable over
 HTTP, with invalid and unauthorised writes rejected server-side.
 
-### 32 — Forms & inputs
+### 32 — Forms & inputs *(detailed: `32-forms-and-inputs.md`)*
 `Form`, `Input`, `Textarea`, `Select`, `Checkbox`, `SubmitButton` — the
 minimum for the slice, not the full catalogue. Declarative field schema,
 required/type validation, `form.values.*` and `form.errors.*` binding

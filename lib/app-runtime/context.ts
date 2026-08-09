@@ -6,7 +6,7 @@ import {
 } from "@/builder/resources/validate";
 import type { ResourceDefinition } from "@/builder/resources/types";
 import { parseBuilderContent } from "@/lib/builder";
-import { prisma } from "@/lib/db";
+import { findPublishedPortfolioBySlug, normalizePortfolioSlug } from "@/lib/slug";
 import { SITE_SLUG_HEADER } from "@/lib/hosts";
 
 export type PublishedProjectContext = {
@@ -22,15 +22,13 @@ export async function readSiteSlugFromHeaders(): Promise<string | null> {
 export async function resolvePublishedProject(
   slug: string,
 ): Promise<PublishedProjectContext | null> {
-  const portfolio = await prisma.portfolio.findFirst({
-    where: { slug: { equals: slug, mode: "insensitive" }, status: "PUBLISHED" },
-  });
+  const portfolio = await findPublishedPortfolioBySlug(slug);
 
   if (!portfolio) {
     return null;
   }
 
-  return { portfolio, slug: portfolio.slug ?? slug };
+  return { portfolio, slug: portfolio.slug ?? normalizePortfolioSlug(slug) };
 }
 
 export function getResourceDefinitionFromPortfolio(

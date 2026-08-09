@@ -46,7 +46,7 @@ export interface ResourceDefinition {
 
 export const DEFAULT_RESOURCE_PERMISSIONS: ResourcePermissions = {
   create: "public",
-  read: "public",
+  read: "none",
   update: "none",
   delete: "none",
 };

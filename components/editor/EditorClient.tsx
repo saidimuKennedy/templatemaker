@@ -17,6 +17,7 @@ import { Toolbox } from "@/components/editor/Toolbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/components/ui/toast";
+import { Database, ListTree } from "lucide-react";
 import { resolveDropCommand } from "@/builder/canvas/drag";
 import { resolveDuplicateCommand } from "@/builder/canvas/duplicate";
 import { resolveKeyAction } from "@/builder/canvas/keyboard";
@@ -579,7 +580,8 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
 
   const toolbar = (
     <EditorTopBar
-      status={status}
+      leftPanelTab={leftPanelTab}
+      onLeftPanelTabChange={setLeftPanelTab}
       viewport={viewport}
       onViewportChange={setViewport}
       canUndo={session.canUndo()}
@@ -631,23 +633,8 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   );
 
   const leftPanel = (
-    <div className="flex h-full min-h-0 flex-col">
-      <Tabs
-        value={leftPanelTab}
-        onValueChange={(value) => setLeftPanelTab(value as "navigator" | "resources")}
-        className="flex h-full min-h-0 flex-col"
-      >
-        <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
-          <TabsTrigger value="navigator">Navigator</TabsTrigger>
-          <TabsTrigger value="resources">Data</TabsTrigger>
-        </TabsList>
-        <TabsContent value="navigator" className="mt-0 min-h-0 flex-1 data-[state=inactive]:hidden">
-          {navigatorPanel}
-        </TabsContent>
-        <TabsContent value="resources" className="mt-0 min-h-0 flex-1 data-[state=inactive]:hidden">
-          {resourcesPanel}
-        </TabsContent>
-      </Tabs>
+    <div className="flex h-full min-h-0 flex-col border-r border-border bg-card">
+      {leftPanelTab === "navigator" ? navigatorPanel : resourcesPanel}
     </div>
   );
 
@@ -716,8 +703,14 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       <div className="md:hidden">
         <Tabs defaultValue="canvas" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="navigator">Navigator</TabsTrigger>
-            <TabsTrigger value="resources">Data</TabsTrigger>
+            <TabsTrigger value="navigator" className="gap-1 px-1 text-[10px]">
+              <ListTree className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">Nav</span>
+            </TabsTrigger>
+            <TabsTrigger value="resources" className="gap-1 px-1 text-[10px]">
+              <Database className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">Data</span>
+            </TabsTrigger>
             <TabsTrigger value="toolbox">Components</TabsTrigger>
             <TabsTrigger value="canvas">Canvas</TabsTrigger>
             <TabsTrigger value="inspector">Properties</TabsTrigger>

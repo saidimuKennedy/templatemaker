@@ -53,7 +53,7 @@ export function extractSiteSlug(host: string): string | null {
     return null;
   }
 
-  return slug;
+  return slug.toLowerCase();
 }
 
 function requestProtocol(): "http" | "https" {
@@ -140,7 +140,7 @@ export function appOriginPublishedRedirect(
   const publishedMatch = pathname.match(/^\/p\/([^/]+)(\/.*)?$/);
   if (publishedMatch) {
     return {
-      slug: publishedMatch[1]!,
+      slug: publishedMatch[1]!.toLowerCase(),
       sitePath: publishedMatch[2] ?? "",
     };
   }
@@ -149,7 +149,7 @@ export function appOriginPublishedRedirect(
   if (embedMatch) {
     const rest = embedMatch[2] ?? "";
     return {
-      slug: embedMatch[1]!,
+      slug: embedMatch[1]!.toLowerCase(),
       sitePath: rest ? `/embed${rest}` : "/embed",
     };
   }

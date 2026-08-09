@@ -10,7 +10,7 @@ import {
   resolvePageByPath,
 } from "@/lib/builder";
 import { buildPublishedSiteUrl } from "@/lib/hosts";
-import { prisma } from "@/lib/db";
+import { findPublishedPortfolioBySlug } from "@/lib/slug";
 
 export const revalidate = false;
 
@@ -22,9 +22,7 @@ export async function generateMetadata({
   params,
 }: PublicPortfolioPageProps): Promise<Metadata> {
   const { slug, path } = await params;
-  const portfolio = await prisma.portfolio.findFirst({
-    where: { slug: { equals: slug, mode: "insensitive" }, status: "PUBLISHED" },
-  });
+  const portfolio = await findPublishedPortfolioBySlug(slug);
 
   if (!portfolio) {
     return { title: "Portfolio not found" };
@@ -57,9 +55,7 @@ export async function generateMetadata({
 export default async function PublicPortfolioPage({ params }: PublicPortfolioPageProps) {
   const { slug, path } = await params;
 
-  const portfolio = await prisma.portfolio.findFirst({
-    where: { slug: { equals: slug, mode: "insensitive" }, status: "PUBLISHED" },
-  });
+  const portfolio = await findPublishedPortfolioBySlug(slug);
 
   if (!portfolio) {
     notFound();
