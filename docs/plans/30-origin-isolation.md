@@ -200,12 +200,27 @@ Set in the proxy, applied only to the site host:
   `<style dangerouslySetInnerHTML>` (`lib/builder/content.tsx:123`), so
   it needs a **nonce**, not `style-src 'unsafe-inline'`. Thread the nonce
   from the proxy through to that `<style>` tag.
+- **`style-src-attr 'unsafe-inline'` is required.** Node styles render as
+  `style="..."` attributes — ~94 on a typical page. A nonce whitelists
+  `<style>` **elements only**; attributes fall under `style-src-attr`, which
+  inherits `style-src` and blocks every one of them. The failure is not
+  obvious: external CSS still loads, so the page renders with its background
+  intact and every builder-authored layout rule silently dropped.
+  Do not remove this directive without doing the follow-up below first.
 - **`frame-ancestors`.** `'none'` for `/p`; the embed route exists to be
   framed, so it gets its own policy. Do not give both routes one policy.
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
 
-**Exit:** CSP violations are zero on a published portfolio, verified in a
-browser console — not inferred.
+**Exit:** CSP violations are zero on a published portfolio **and the page
+renders identically to the app origin**, both verified in a real browser —
+not inferred from headers. Header inspection alone passes while the page is
+visually broken, which is exactly how the `style-src-attr` gap was missed.
+
+**Follow-up (not this plan):** emit base node styles into the nonce'd
+stylesheet keyed on `data-node-id`, the way `buildResponsiveStylesheet`
+already does for breakpoints. That removes the last inline-style dependency
+and lets `style-src-attr 'unsafe-inline'` be dropped. Worth doing before any
+user-authored code feature (see ADR-012 deferred list), not before Plan 31.
 
 ---
 

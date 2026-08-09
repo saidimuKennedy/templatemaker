@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/utils";
+import { buildPublishedSiteUrlClient } from "@/lib/hosts";
 
 type PortfolioCardProps = {
   portfolio: Portfolio;
@@ -110,13 +111,14 @@ export function PortfolioCard({ portfolio }: PortfolioCardProps) {
             {portfolio.status.toLowerCase()}
           </Badge>
           {portfolio.slug && portfolio.status === "PUBLISHED" ? (
-            <Link
-              href={`/p/${portfolio.slug}`}
+            <a
+              href={buildPublishedSiteUrlClient(portfolio.slug)}
               className="text-xs text-muted-foreground hover:underline"
               target="_blank"
+              rel="noreferrer"
             >
               View live
-            </Link>
+            </a>
           ) : null}
         </div>
       </article>

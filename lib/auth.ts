@@ -10,7 +10,13 @@ export const lucia = new Lucia(adapter, {
   sessionCookie: {
     name: SESSION_COOKIE_NAME,
     attributes: {
+      // httpOnly is always true — enforced by Lucia defaults, verified in auth-cookie.test.ts.
+      sameSite: "lax",
+      path: "/",
       secure: process.env.NODE_ENV === "production",
+      // Never set `domain`. Host-only cookies keep the platform session on
+      // the app origin only; a Domain attribute would let sibling hosts
+      // receive or shadow it and undo origin isolation (Plan 30).
     },
   },
   getUserAttributes: (attributes) => ({
@@ -27,7 +33,15 @@ declare module "lucia" {
   }
 }
 
-export async function getSession() {
+export type AuthUser = {
+  id: string;
+  email: string;
+};
+
+export async function getSession(): Promise<{
+  user: AuthUser | null;
+  session: import("lucia").Session | null;
+}> {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(lucia.sessionCookieName)?.value ?? null;
 
@@ -35,7 +49,18 @@ export async function getSession() {
     return { user: null, session: null };
   }
 
-  return lucia.validateSession(sessionId);
+  const { user, session } = await lucia.validateSession(sessionId);
+  if (!user || !session) {
+    return { user: null, session: null };
+  }
+
+  return {
+    user: {
+      id: user.id,
+      email: (user as { email?: string }).email ?? "",
+    },
+    session,
+  };
 }
 
 export async function requireSession() {

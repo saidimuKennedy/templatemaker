@@ -6,10 +6,9 @@ const LINK_TYPES = new Set(["Link", "LinkBlock"]);
 /**
  * Joins the mount point to a document-relative page path.
  *
- * Page paths are relative to the document (`/`, `/work`), but a published
- * portfolio is served from `/p/<slug>` and an embed from `/embed/<slug>`.
- * Emitting the bare path sends `/work` to the site root, which 404s — the
- * link looks right in the editor and is broken everywhere else.
+ * Page paths are relative to the document (`/`, `/work`), but the mount
+ * point depends on where the document is served: site origin uses `/`
+ * (no prefix); legacy app-origin mounts use `/p/<slug>` or `/embed/<slug>`.
  */
 export function joinBasePath(basePath: string | undefined, pagePath: string): string {
   const normalizedPage = normalizePagePath(pagePath);

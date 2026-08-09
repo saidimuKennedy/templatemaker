@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import {
   createPortfolioRegistry,
   parseBuilderContent,
+  readPublishedStyleNonce,
   renderEmbedded,
   resolvePageByPath,
   validatePortfolioDocument,
@@ -18,7 +19,7 @@ export default async function EmbedPortfolioPage({ params }: EmbedPageProps) {
   const { slug, path } = await params;
 
   const portfolio = await prisma.portfolio.findFirst({
-    where: { slug, status: "PUBLISHED" },
+    where: { slug: { equals: slug, mode: "insensitive" }, status: "PUBLISHED" },
   });
 
   if (!portfolio) {
@@ -36,11 +37,12 @@ export default async function EmbedPortfolioPage({ params }: EmbedPageProps) {
   }
 
   const registry = createPortfolioRegistry();
+  const styleNonce = await readPublishedStyleNonce();
 
   const validation = validatePortfolioDocument(document, registry);
   if (!validation.valid) {
     notFound();
   }
 
-  return renderEmbedded(document, registry, path, slug);
+  return renderEmbedded(document, registry, path, "/embed", styleNonce);
 }

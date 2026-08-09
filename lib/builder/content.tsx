@@ -14,6 +14,7 @@ import { createRenderer } from "@/builder/renderer/renderer";
 import { createStyledRenderer } from "@/builder/styles/apply";
 import { buildResponsiveStylesheet } from "@/builder/styles/responsive";
 import { pageNeedsRuntime } from "@/builder/runtime/needs-runtime";
+import { CSP_NONCE_HEADER } from "@/lib/hosts";
 import { BuilderRuntimeProvider } from "@/builder/runtime/BuilderRuntimeProvider";
 
 export function parseBuilderContent(raw: Prisma.JsonValue): BuilderDocument | undefined {
@@ -112,6 +113,7 @@ function renderResponsivePage(
   target: RenderTarget,
   page: BuilderPage,
   basePath?: string,
+  styleNonce?: string,
 ): ReactElement {
   const renderer = createStyledRenderer(createRenderer(), "base");
   const needsRuntime = pageNeedsRuntime(page, registry);
@@ -126,7 +128,9 @@ function renderResponsivePage(
 
   const content = (
     <Fragment>
-      {stylesheet ? <style dangerouslySetInnerHTML={{ __html: stylesheet }} /> : null}
+      {stylesheet ? (
+        <style nonce={styleNonce} dangerouslySetInnerHTML={{ __html: stylesheet }} />
+      ) : null}
       {tree}
     </Fragment>
   );
@@ -144,33 +148,35 @@ function renderResponsive(
   target: RenderTarget,
   pathSegments?: readonly string[],
   basePath?: string,
+  styleNonce?: string,
 ): ReactElement {
   const page = resolvePageByPath(document, pathSegments);
   if (!page) {
     throw new Error("Page not found.");
   }
-  return renderResponsivePage(document, registry, target, page, basePath);
+  return renderResponsivePage(document, registry, target, page, basePath, styleNonce);
 }
 
 /**
- * `slug` is what mounts the document at `/p/<slug>`. Without it, page links
- * resolve to bare document paths (`/work`) and navigate off the portfolio to
- * a route that does not exist. Optional only so existing callers that render
- * a single page for preview keep compiling; pass it for anything a visitor
- * will click.
+ * Renders a published portfolio page. On the dedicated site origin the
+ * document is mounted at `/`, so `basePath` is omitted and page links
+ * resolve to bare paths (`/work`). The editor preview and legacy app-origin
+ * mount at `/p/<slug>` and pass that prefix explicitly.
  */
 export function renderPublished(
   document: BuilderDocument,
   registry: ComponentRegistry,
   pathSegments?: readonly string[],
-  slug?: string,
+  basePath?: string,
+  styleNonce?: string,
 ): ReactElement {
   return renderResponsive(
     document,
     registry,
     "published-webview",
     pathSegments,
-    slug ? `/p/${slug}` : undefined,
+    basePath,
+    styleNonce,
   );
 }
 
@@ -186,15 +192,24 @@ export function renderEmbedded(
   document: BuilderDocument,
   registry: ComponentRegistry,
   pathSegments?: readonly string[],
-  slug?: string,
+  basePath?: string,
+  styleNonce?: string,
 ): ReactElement {
   return renderResponsive(
     document,
     registry,
     "embedded-crm",
     pathSegments,
-    slug ? `/embed/${slug}` : undefined,
+    basePath,
+    styleNonce,
   );
+}
+
+/** Reads the CSP nonce forwarded by the site-origin proxy rewrite. */
+export async function readPublishedStyleNonce(): Promise<string | undefined> {
+  const { headers } = await import("next/headers");
+  const headerStore = await headers();
+  return headerStore.get(CSP_NONCE_HEADER) ?? undefined;
 }
 
 export function findNodeParentId(

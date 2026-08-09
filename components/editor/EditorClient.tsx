@@ -28,6 +28,7 @@ import type { Command } from "@/builder/history/types";
 import { exportDocumentJson } from "@/builder/publish/export";
 import { migrateDocumentLayoutIntent, seedLayoutStyles } from "@/builder/styles/layout-intent";
 import type { Breakpoint } from "@/builder/styles/types";
+import { buildEmbedSiteUrlClient, buildPublishedSiteUrlClient } from "@/lib/hosts";
 import { createPortfolioRegistry } from "@/lib/builder";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -478,7 +479,9 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         }
         toast({
           title: "Published",
-          description: result.slug ? `Live at /p/${result.slug}` : "Portfolio is live.",
+          description: result.slug
+            ? `Live at ${buildPublishedSiteUrlClient(result.slug)}`
+            : "Portfolio is live.",
         });
       } catch {
         toast({ title: "Error", description: "Could not publish portfolio." });
@@ -501,7 +504,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
     if (!slug) {
       return;
     }
-    const src = `${window.location.origin}/embed/${slug}`;
+    const src = buildEmbedSiteUrlClient(slug);
     const snippet = `<iframe src="${src}" style="width:100%;border:0" title="Portfolio"></iframe>`;
     try {
       await navigator.clipboard.writeText(snippet);

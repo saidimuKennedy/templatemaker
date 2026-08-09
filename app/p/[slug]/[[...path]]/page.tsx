@@ -5,9 +5,11 @@ import {
   getProfileHeaderBio,
   getProfileHeaderName,
   parseBuilderContent,
+  readPublishedStyleNonce,
   renderPublished,
   resolvePageByPath,
 } from "@/lib/builder";
+import { buildPublishedSiteUrl } from "@/lib/hosts";
 import { prisma } from "@/lib/db";
 
 export const revalidate = false;
@@ -21,7 +23,7 @@ export async function generateMetadata({
 }: PublicPortfolioPageProps): Promise<Metadata> {
   const { slug, path } = await params;
   const portfolio = await prisma.portfolio.findFirst({
-    where: { slug, status: "PUBLISHED" },
+    where: { slug: { equals: slug, mode: "insensitive" }, status: "PUBLISHED" },
   });
 
   if (!portfolio) {
@@ -41,10 +43,14 @@ export async function generateMetadata({
   const name = getProfileHeaderName(document) || portfolio.title;
   const bio = getProfileHeaderBio(document);
   const description = bio.slice(0, 160);
+  const pagePath = path?.length ? `/${path.join("/")}` : "";
 
   return {
     title: path?.length ? `${page.name} · ${name}` : name,
     description: description || undefined,
+    alternates: {
+      canonical: buildPublishedSiteUrl(slug, pagePath),
+    },
   };
 }
 
@@ -52,7 +58,7 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
   const { slug, path } = await params;
 
   const portfolio = await prisma.portfolio.findFirst({
-    where: { slug, status: "PUBLISHED" },
+    where: { slug: { equals: slug, mode: "insensitive" }, status: "PUBLISHED" },
   });
 
   if (!portfolio) {
@@ -70,6 +76,7 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
   }
 
   const registry = createPortfolioRegistry();
+  const styleNonce = await readPublishedStyleNonce();
 
   return (
     <div
@@ -84,7 +91,7 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
         which overflowed the page horizontally.
       */}
       <div className="mx-auto w-full max-w-[1200px]">
-        {renderPublished(document, registry, path, slug)}
+        {renderPublished(document, registry, path, undefined, styleNonce)}
       </div>
     </div>
   );
