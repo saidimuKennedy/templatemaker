@@ -10,6 +10,7 @@
 
 import type { BuilderNode, BuilderProject, ValidationError, ValidationResult } from "./types";
 import type { ComponentRegistry } from "../registry/types";
+import { validateResources } from "../resources/validate";
 
 function collectNodeIds(
   node: BuilderNode,
@@ -76,6 +77,11 @@ export function validateDocumentStructure(project: BuilderProject): ValidationRe
   });
 
   return { valid: errors.length === 0, errors };
+}
+
+/** Validates project-level resource definitions. */
+export function validateDocumentResources(project: BuilderProject): ValidationResult {
+  return validateResources(project.resources);
 }
 
 /** Checks every node references a registered component type and respects its parent/child constraints. */

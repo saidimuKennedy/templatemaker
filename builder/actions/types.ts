@@ -3,6 +3,27 @@ import type { NodeId } from "../document/types";
 
 export type EventName = "onClick" | "onSubmit" | "onChange";
 
+export const EVENT_LABELS: Record<EventName, string> = {
+  onClick: "Click",
+  onSubmit: "Submit",
+  onChange: "Change",
+};
+
+export type EventOptions = {
+  readonly enabled?: boolean;
+  readonly throttleMs?: number;
+  readonly preventDefault?: boolean;
+  readonly stopPropagation?: boolean;
+};
+
+export const THROTTLE_MS_OPTIONS = [
+  { label: "None", value: 0 },
+  { label: "100ms", value: 100 },
+  { label: "300ms", value: 300 },
+  { label: "500ms", value: 500 },
+  { label: "1000ms", value: 1000 },
+] as const;
+
 export interface Comparison {
   readonly left: unknown | Binding;
   readonly op:
@@ -65,6 +86,14 @@ export const ACTION_STEP_TYPES = [
 ] as const;
 
 export type ActionStepType = (typeof ACTION_STEP_TYPES)[number];
+
+export const ACTION_LABELS: Record<ActionStepType, string> = {
+  navigate: "Navigate",
+  setVariable: "Set variable",
+  notify: "Notify",
+  openModal: "Open modal",
+  closeModal: "Close modal",
+};
 
 export function isCondition(value: unknown): value is Condition {
   if (typeof value !== "object" || value === null) {

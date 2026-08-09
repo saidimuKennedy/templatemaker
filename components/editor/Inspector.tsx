@@ -526,6 +526,7 @@ export function Inspector({
           <InteractionsPanelEditor
             pageId={pageId}
             node={found.node}
+            document={document}
             onCommand={onCommand}
           />
         </TabsContent>

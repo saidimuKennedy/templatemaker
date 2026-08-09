@@ -158,6 +158,8 @@ which 19's prompt construction reads.
 
 ### Editor shell (Plans 21–22) — inserted ahead of v2
 
+> **WEBFLOW-DEV-REF:** remove/replace external product mentions in this section before release.
+
 | # | Plan | Directory | Depends on | Notes |
 |---|------|-----------|------------|-------|
 | 21 | [Webflow Editor Alignment](./21-webflow-editor-alignment.md) | `scripts/seed-dogfood-portfolio.tsx`, `components/editor/{Navigator,StyleInspector,EditorClient,Toolbox}.tsx`, `builder/styles/fields.ts`, `builder/document/types.ts` | v1 (13–16) | **Landed.** Navigator panel, grouped Style panel, Toolbox popover |
@@ -166,8 +168,8 @@ which 19's prompt construction reads.
 Plan 21 was inserted after v1 and before the v2 sequence: the editor's
 shell was `[Toolbox | Canvas | Inspector]` with no way to see or select
 the document tree except by clicking canvas boxes, which does not scale
-past a shallow page. It brings the editor to Webflow's
-`[Navigator | Canvas | Style]` shape.
+past a shallow page. It brings the editor to a `[Navigator | Canvas | Style]`
+shape (WEBFLOW-DEV-REF: was compared to an external product).
 
 Three decisions from Plan 21 bind later work — read its "Confirmed
 decisions" section before touching styles or the editor shell:

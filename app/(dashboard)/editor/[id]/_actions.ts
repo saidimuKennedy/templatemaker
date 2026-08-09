@@ -20,6 +20,7 @@ import {
 import { AI_RATE_LIMITS, checkAIRateLimit, recordAIRequest } from "@/lib/ai/rate-limit";
 import { prisma } from "@/lib/db";
 import { generateSlug } from "@/lib/slug";
+import { syncResourcesForPortfolio } from "@/lib/app-runtime/records";
 
 /**
  * Invalidates every public URL that renders a portfolio's content.
@@ -202,6 +203,8 @@ export async function publishPortfolio(portfolioId: string): Promise<PublishPort
       title: displayName,
     },
   });
+
+  await syncResourcesForPortfolio(portfolioId, document.resources);
 
   revalidatePublicRoutes(slug, document);
   return { success: true, slug };

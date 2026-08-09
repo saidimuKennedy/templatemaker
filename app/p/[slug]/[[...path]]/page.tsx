@@ -80,8 +80,18 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
 
   return (
     <div
-      className="min-h-screen bg-background px-4 py-8 text-foreground"
-      style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
+      className="min-h-screen px-4 py-8"
+      style={{
+        // Explicit, not `bg-background`/`text-foreground`. Those are platform
+        // tokens that flip with the visitor's `prefers-color-scheme`, which
+        // repainted published portfolios to the visitor's OS theme and left
+        // author text unreadable against author-set surfaces (Plan 30).
+        // A published page is the author's canvas; the visitor's preferences
+        // do not get a vote.
+        background: "#ffffff",
+        color: "#0a0a0a",
+        fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+      }}
     >
       {/*
         Fluid, not fixed: the document is authored mobile-first and its sm/md/lg

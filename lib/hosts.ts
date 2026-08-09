@@ -1,6 +1,12 @@
 /** Request header set by the site-origin proxy rewrite (Plan 30). */
 export const CSP_NONCE_HEADER = "x-csp-nonce";
 
+/** Request header set by the site-origin proxy for app-runtime API routes (Plan 31). */
+export const SITE_SLUG_HEADER = "x-site-slug";
+
+/** App-runtime record API prefix — served on site origin only. */
+export const APP_RUNTIME_API_PREFIX = "/api/records";
+
 const DEFAULT_APP_HOST = "localhost:3000";
 const DEFAULT_SITES_HOST = "sites.localhost:3000";
 
@@ -94,8 +100,19 @@ const PLATFORM_PATH_PREFIXES = [
   "/api",
 ] as const;
 
+/** App-runtime record routes — reachable on site origin, 404 on app origin. */
+export function isAppRuntimeApiPath(pathname: string): boolean {
+  return (
+    pathname === APP_RUNTIME_API_PREFIX ||
+    pathname.startsWith(`${APP_RUNTIME_API_PREFIX}/`)
+  );
+}
+
 /** Platform-only paths that must 404 on the site origin. */
 export function isPlatformPath(pathname: string): boolean {
+  if (isAppRuntimeApiPath(pathname)) {
+    return false;
+  }
   return PLATFORM_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
@@ -151,9 +168,29 @@ export function generateCspNonce(): string {
 }
 
 export function buildSiteOriginCsp(nonce: string, embed: boolean): string {
+  const isDev = process.env.NODE_ENV === "development";
   const directives = [
     "default-src 'self'",
-    "script-src 'self'",
+    // The nonce is not optional. Next emits ~22 inline <script> tags per
+    // published page — 18 of them RSC flight data (`__next_f.push`) — and
+    // `script-src 'self'` blocks every one, which breaks hydration. Pages
+    // with no interactive nodes ship no client components and so survive it
+    // unnoticed; the first page carrying a Plan 29 action does not.
+    //
+    // Next applies this nonce to its own script tags by parsing the
+    // Content-Security-Policy REQUEST header (see the CSP guide in
+    // next/dist/docs) — which is why `proxy.ts` must set the policy on the
+    // request as well as the response.
+    //
+    // Deliberately no 'strict-dynamic': it makes 'self' inert in supporting
+    // browsers, so every chunk must inherit the nonce through the loader. It
+    // was verified to work here, but it buys nothing over 'self' on an origin
+    // that serves only first-party script, and it fails closed and silently
+    // if a loader ever stops propagating.
+    //
+    // Dev needs 'unsafe-eval' because React reconstructs server stacks with
+    // eval(); production does not.
+    `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ""}`,
     "object-src 'none'",
     "base-uri 'none'",
     `style-src 'self' 'nonce-${nonce}'`,

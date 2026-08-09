@@ -8,11 +8,14 @@ import {
 } from "@/app/(dashboard)/editor/[id]/_actions";
 import { Canvas, initialCanvasState } from "@/components/editor/Canvas";
 import { CanvasToolbar } from "@/components/editor/CanvasToolbar";
+import { EditorTopBar } from "@/components/editor/EditorTopBar";
 import { Inspector } from "@/components/editor/Inspector";
 import type { NodeActionState, NodeActions } from "@/components/editor/NodeActionsMenu";
 import { Navigator } from "@/components/editor/Navigator";
+import { ResourcesPanelEditor } from "@/components/editor/ResourcesPanelEditor";
 import { Toolbox } from "@/components/editor/Toolbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/components/ui/toast";
 import { resolveDropCommand } from "@/builder/canvas/drag";
 import { resolveDuplicateCommand } from "@/builder/canvas/duplicate";
@@ -30,7 +33,6 @@ import { migrateDocumentLayoutIntent, seedLayoutStyles } from "@/builder/styles/
 import type { Breakpoint } from "@/builder/styles/types";
 import { buildEmbedSiteUrlClient, buildPublishedSiteUrlClient } from "@/lib/hosts";
 import { createPortfolioRegistry } from "@/lib/builder";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const NAVIGATOR_WIDTH_KEY = "editor-navigator-width";
@@ -116,6 +118,35 @@ function PanelResizeHandle({ side, onResize, onResizeEnd }: PanelResizeHandlePro
   );
 }
 
+function openLiveSite(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function publishedSiteToast(
+  toastFn: ReturnType<typeof useToast>["toast"],
+  slug: string,
+) {
+  const liveUrl = buildPublishedSiteUrlClient(slug);
+  const open = () => openLiveSite(liveUrl);
+  toastFn({
+    title: "Published",
+    description: (
+      <button
+        type="button"
+        className="mt-0.5 block max-w-full truncate text-left text-sm text-primary underline-offset-2 hover:underline"
+        onClick={open}
+      >
+        Live at {liveUrl}
+      </button>
+    ),
+    action: (
+      <ToastAction altText="Open live site" onClick={open}>
+        Open
+      </ToastAction>
+    ),
+  });
+}
+
 type EditorClientProps = {
   portfolioId: string;
   initialDocument: BuilderDocument;
@@ -138,6 +169,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [navigatorWidth, setNavigatorWidth] = useState(DEFAULT_NAVIGATOR_WIDTH);
   const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
+  const [leftPanelTab, setLeftPanelTab] = useState<"navigator" | "resources">("navigator");
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -477,12 +509,11 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
           });
           return;
         }
-        toast({
-          title: "Published",
-          description: result.slug
-            ? `Live at ${buildPublishedSiteUrlClient(result.slug)}`
-            : "Portfolio is live.",
-        });
+        if (result.slug) {
+          publishedSiteToast(toast, result.slug);
+        } else {
+          toast({ title: "Published", description: "Portfolio is live." });
+        }
       } catch {
         toast({ title: "Error", description: "Could not publish portfolio." });
       }
@@ -499,6 +530,25 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       }
     });
   };
+
+  const handleOpenLive = useCallback(() => {
+    if (!slug) {
+      return;
+    }
+    const page = session.getDocument().pages.find((entry) => entry.id === pageId);
+    openLiveSite(buildPublishedSiteUrlClient(slug, page?.path ?? ""));
+  }, [pageId, session, slug]);
+
+  const handlePreview = useCallback(() => {
+    if (!slug) {
+      toast({
+        title: "Not published yet",
+        description: "Publish your portfolio to preview the live site.",
+      });
+      return;
+    }
+    handleOpenLive();
+  }, [handleOpenLive, slug, toast]);
 
   const handleCopyEmbedCode = async () => {
     if (!slug) {
@@ -525,11 +575,26 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
     URL.revokeObjectURL(url);
   };
 
+  const isPublished = status.toLowerCase() === "published";
+
   const toolbar = (
-    <div className="mx-4 flex items-center justify-between py-0.5">
-      <span className="text-sm capitalize text-muted-foreground">{status.toLowerCase()}</span>
-      <ThemeToggle className="md:hidden" />
-    </div>
+    <EditorTopBar
+      status={status}
+      viewport={viewport}
+      onViewportChange={setViewport}
+      canUndo={session.canUndo()}
+      canRedo={session.canRedo()}
+      onUndo={handleUndo}
+      onRedo={handleRedo}
+      pending={pending}
+      onPublish={handlePublish}
+      onPreview={handlePreview}
+      onUnpublish={handleUnpublish}
+      onCopyEmbed={handleCopyEmbedCode}
+      onOpenLive={handleOpenLive}
+      isPublished={isPublished}
+      canPreview={Boolean(slug)}
+    />
   );
 
   const inspector = (
@@ -557,8 +622,33 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       onEndEdit={() => setEditingNodeId(null)}
       onSelectPage={handleSelectPage}
       onNotify={({ title, description }) => toast({ title, description })}
-      isPublished={status === "published"}
+      isPublished={isPublished}
     />
+  );
+
+  const resourcesPanel = (
+    <ResourcesPanelEditor document={session.getDocument()} onCommand={handleCommand} />
+  );
+
+  const leftPanel = (
+    <div className="flex h-full min-h-0 flex-col">
+      <Tabs
+        value={leftPanelTab}
+        onValueChange={(value) => setLeftPanelTab(value as "navigator" | "resources")}
+        className="flex h-full min-h-0 flex-col"
+      >
+        <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
+          <TabsTrigger value="navigator">Navigator</TabsTrigger>
+          <TabsTrigger value="resources">Data</TabsTrigger>
+        </TabsList>
+        <TabsContent value="navigator" className="mt-0 min-h-0 flex-1 data-[state=inactive]:hidden">
+          {navigatorPanel}
+        </TabsContent>
+        <TabsContent value="resources" className="mt-0 min-h-0 flex-1 data-[state=inactive]:hidden">
+          {resourcesPanel}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 
   const toolbox = <Toolbox registry={registry} onAdd={handleAddComponent} />;
@@ -584,27 +674,16 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         onRevertSnapshot={handleRevertSnapshot}
         toast={toast}
         onAdd={handleAddComponent}
-        viewport={viewport}
-        onViewportChange={setViewport}
         pending={pending}
         onSave={() => handleSave()}
-        status={status}
-        slug={slug}
-        onPublish={handlePublish}
-        onUnpublish={handleUnpublish}
-        onCopyEmbed={handleCopyEmbedCode}
         onExport={handleExportJson}
-        canUndo={session.canUndo()}
-        canRedo={session.canRedo()}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
       />
     </div>
   );
 
   return (
     <div className="flex h-screen max-h-screen flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border px-4 py-2">{toolbar}</div>
+      <div className="shrink-0">{toolbar}</div>
       <div
         className="editor-shell hidden flex-1 min-h-0 md:grid"
         style={{
@@ -612,7 +691,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
         }}
       >
         <div className="relative h-full min-h-0 min-w-0">
-          {navigatorPanel}
+          {leftPanel}
           <PanelResizeHandle
             side="navigator"
             onResize={(delta) => {
@@ -636,14 +715,18 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
 
       <div className="md:hidden">
         <Tabs defaultValue="canvas" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="navigator">Navigator</TabsTrigger>
+            <TabsTrigger value="resources">Data</TabsTrigger>
             <TabsTrigger value="toolbox">Components</TabsTrigger>
             <TabsTrigger value="canvas">Canvas</TabsTrigger>
             <TabsTrigger value="inspector">Properties</TabsTrigger>
           </TabsList>
           <TabsContent value="navigator" className="mt-4 min-h-[50vh]">
             {navigatorPanel}
+          </TabsContent>
+          <TabsContent value="resources" className="mt-4 min-h-[50vh]">
+            {resourcesPanel}
           </TabsContent>
           <TabsContent value="toolbox" className="mt-4 min-h-[50vh]">
             {toolbox}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlatformChrome } from "@/components/platform-chrome";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
@@ -7,6 +8,7 @@ export default async function HomePage() {
   const { user } = await getSession();
 
   return (
+    <PlatformChrome>
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
@@ -50,5 +52,6 @@ export default async function HomePage() {
         </div>
       </main>
     </div>
+    </PlatformChrome>
   );
 }

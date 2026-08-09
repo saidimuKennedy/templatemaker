@@ -23,6 +23,7 @@ import type { ComponentRegistry } from "@/builder/registry/types";
 import { createRenderer } from "@/builder/renderer/renderer";
 import { createStyledRenderer } from "@/builder/styles/apply";
 import type { Breakpoint } from "@/builder/styles/types";
+import { VIEWPORT_MAX_WIDTH } from "@/builder/styles/viewports";
 import type { NodeActions } from "@/components/editor/NodeActionsMenu";
 import { NodeActionsMenuContent } from "@/components/editor/NodeActionsMenu";
 import {
@@ -40,13 +41,6 @@ const SELECTION_COLOR = "#2563eb";
 
 const EMPTY_NODE_IDS: readonly string[] = [];
 const EMPTY_OVERLAY_STYLES: CSSProperties[] = [];
-
-const VIEWPORT_MAX_WIDTH: Record<Breakpoint, string> = {
-  base: "390px",
-  sm: "640px",
-  md: "768px",
-  lg: "100%",
-};
 
 type CanvasProps = {
   readonly session: EditorSession;
@@ -471,8 +465,8 @@ export function Canvas({
               {renderedPage}
             </div>
             {/*
-              The selection outline carries its own name badge, the way
-              Webflow tags a selected element. Without it the canvas tells you
+              WEBFLOW-DEV-REF: remove before release — prior comment named an external product.
+              The selection outline carries its own name badge. Without it the canvas tells you
               *that* something is selected but never *what* — and with nested
               Containers/Stacks that all render as plain boxes, the outline
               alone is genuinely ambiguous. The badge sits above the box and

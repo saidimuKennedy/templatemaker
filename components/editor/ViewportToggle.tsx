@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Laptop, Monitor, Smartphone, Tablet } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const VIEWPORTS: readonly {
   icon: React.ReactNode;
@@ -24,7 +25,7 @@ const VIEWPORTS: readonly {
 type ViewportToggleProps = {
   readonly value: Breakpoint;
   readonly onChange: (value: Breakpoint) => void;
-  readonly variant?: "default" | "pill";
+  readonly variant?: "default" | "pill" | "segment";
   readonly showTooltips?: boolean;
   readonly tooltipSide?: "top" | "bottom";
 };
@@ -36,6 +37,7 @@ function ViewportButton({
   showTooltips,
   tooltipSide,
   pill,
+  segment,
 }: {
   viewport: (typeof VIEWPORTS)[number];
   active: boolean;
@@ -43,13 +45,23 @@ function ViewportButton({
   showTooltips?: boolean;
   tooltipSide?: "top" | "bottom";
   pill?: boolean;
+  segment?: boolean;
 }) {
   const button = (
     <Button
       type="button"
       size="sm"
-      variant={active ? "default" : "ghost"}
-      className={pill ? "h-8 w-8 rounded-full p-0" : "h-8 w-8 p-0"}
+      variant={segment ? "ghost" : active ? "default" : "ghost"}
+      className={
+        segment
+          ? cn(
+              "h-7 w-7 rounded p-0",
+              active && "bg-background text-foreground shadow-sm",
+            )
+          : pill
+            ? "h-8 w-8 rounded-full p-0"
+            : "h-8 w-8 p-0"
+      }
       aria-label={viewport.label}
       onClick={() => onChange(viewport.value)}
     >
@@ -78,6 +90,24 @@ export function ViewportToggle({
   showTooltips = true,
   tooltipSide,
 }: ViewportToggleProps) {
+  if (variant === "segment") {
+    return (
+      <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+        {VIEWPORTS.map((viewport) => (
+          <ViewportButton
+            key={viewport.value}
+            viewport={viewport}
+            active={value === viewport.value}
+            onChange={onChange}
+            showTooltips={showTooltips}
+            tooltipSide={tooltipSide}
+            segment
+          />
+        ))}
+      </div>
+    );
+  }
+
   if (variant === "pill") {
     return (
       <div className="inline-flex items-center gap-0.5">

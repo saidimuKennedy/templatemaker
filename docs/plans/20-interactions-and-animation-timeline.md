@@ -1,10 +1,12 @@
 # Plan 20 — Interactions & Animation Timeline
 
+> **WEBFLOW-DEV-REF:** remove/replace external product mentions before release.
+
 ## Do this last. It is the largest and most invasive plan in the set.
 
 ## Objective
 
-A Webflow-style keyframe timeline: multiple keyframes per animation,
+A keyframe timeline (WEBFLOW-DEV-REF: was "Webflow-style"): multiple keyframes per animation,
 per-property tracks, and triggers that play them.
 
 **This reverses a documented v1 exclusion, in its strongest form.**

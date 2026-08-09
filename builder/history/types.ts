@@ -17,7 +17,8 @@ import type {
   NodeStyles,
   PageId,
 } from "../document/types";
-import type { ActionStep, EventName } from "../actions/types";
+import type { ActionStep, EventName, EventOptions } from "../actions/types";
+import type { ResourceDefinition } from "../resources/types";
 
 export interface CreateNodePayload {
   readonly pageId: PageId;
@@ -92,6 +93,13 @@ export interface SetNodeEventsPayload {
   readonly events: Readonly<Partial<Record<EventName, readonly ActionStep[] | undefined>>>;
 }
 
+export interface SetNodeEventOptionsPayload {
+  readonly pageId: PageId;
+  readonly nodeId: NodeId;
+  /** Omit a key to leave it unchanged; pass undefined value to clear options for an event. */
+  readonly eventOptions: Readonly<Partial<Record<EventName, EventOptions | undefined>>>;
+}
+
 export interface SetPropBindingPayload {
   readonly pageId: PageId;
   readonly nodeId: NodeId;
@@ -106,6 +114,14 @@ export interface ClearPropBindingPayload {
   readonly key: string;
   /** Literal value restored when clearing the binding. */
   readonly literalValue: unknown;
+}
+
+export interface UpsertResourcePayload {
+  readonly resource: ResourceDefinition;
+}
+
+export interface DeleteResourcePayload {
+  readonly name: string;
 }
 
 /**
@@ -126,8 +142,11 @@ export type Command =
   | { readonly type: "UpdatePage"; readonly payload: UpdatePagePayload }
   | { readonly type: "ReorderPage"; readonly payload: ReorderPagePayload }
   | { readonly type: "SetNodeEvents"; readonly payload: SetNodeEventsPayload }
+  | { readonly type: "SetNodeEventOptions"; readonly payload: SetNodeEventOptionsPayload }
   | { readonly type: "SetPropBinding"; readonly payload: SetPropBindingPayload }
-  | { readonly type: "ClearPropBinding"; readonly payload: ClearPropBindingPayload };
+  | { readonly type: "ClearPropBinding"; readonly payload: ClearPropBindingPayload }
+  | { readonly type: "UpsertResource"; readonly payload: UpsertResourcePayload }
+  | { readonly type: "DeleteResource"; readonly payload: DeleteResourcePayload };
 
 export type CommandType = Command["type"];
 

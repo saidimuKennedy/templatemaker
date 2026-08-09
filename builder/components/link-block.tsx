@@ -4,7 +4,9 @@ import { renderEmptyState } from "./empty-placeholder";
 
 /**
  * A container that is itself a link — the primitive needed for things like a
- * clickable project row or card (Webflow calls this a "Link Block").
+ * clickable project row or card (link-block pattern).
+ *
+ * WEBFLOW-DEV-REF: remove before release — prior comment named an external product.
  *
  * Note: HTML forbids nesting an <a> inside an <a>. Putting a Link or an
  * href-bearing Button inside a LinkBlock produces invalid markup that browsers

@@ -161,7 +161,18 @@ complete.
 unprefixed cookie name. Same caveat: that specific defence is
 production-only.
 
-Document the dev URL shape and both caveats in the README.
+**`allowedDevOrigins` is mandatory, and its absence is silent.** The dev
+server binds `localhost`; `<slug>.sites.localhost:3000` is a *different
+origin*, and Next blocks cross-origin requests to dev-only assets by
+default (`next/dist/docs/.../config/next-config-js/allowedDevOrigins.md`).
+The result is not an error — it is a published page with **no client
+runtime at all**: no HMR, no hydration, no console message. Static pages
+look perfect. Anything with a Plan 29 action is inert. Set
+`allowedDevOrigins: ["*.sites.localhost"]` in `next.config.ts`.
+Verified 2026-08-09: without it, hydration produces zero React fibers on
+the site origin while the identical document on the app origin produces 16.
+
+Document the dev URL shape and all three caveats in the README.
 
 **Exit:** `alice.sites.localhost:3000` renders the portfolio;
 `localhost:3000/p/alice` 301s to it; `alice.sites.localhost:3000/dashboard`
@@ -193,9 +204,22 @@ assumptions at the same time.
 
 Set in the proxy, applied only to the site host:
 
-- **CSP.** Today published pages need no script at all; after Plan 29 they
-  need only first-party runtime script. Start at `script-src 'self'`,
-  `default-src 'self'`, `object-src 'none'`, `base-uri 'none'`.
+- **CSP.** `default-src 'self'`, `object-src 'none'`, `base-uri 'none'`.
+  **`script-src` must carry the nonce — `script-src 'self'` alone is wrong.**
+  Next emits ~22 inline `<script>` tags per page (18 of them RSC flight data,
+  `__next_f.push`); a bare `'self'` blocks every one and hydration never
+  happens. Pages with no interactive nodes need no hydration and so hide the
+  break completely — this shipped in `e0dcf64` and was invisible until a page
+  with an action was tested.
+  Next nonces its own script tags only if it can parse the nonce out of the
+  **`Content-Security-Policy` request header**, so the proxy must set the
+  policy on `request.headers` as well as the response. Setting a custom
+  `x-csp-nonce` alone is not enough — that header is only for the one
+  `<style>` tag this app emits itself.
+  Dev additionally needs `'unsafe-eval'` (React rebuilds server stacks with
+  `eval`); production does not. Skip `'strict-dynamic'`: on an origin serving
+  only first-party script it buys nothing over `'self'`, and it fails closed
+  and silently if a chunk loader stops propagating the nonce.
   The responsive stylesheet is injected inline via
   `<style dangerouslySetInnerHTML>` (`lib/builder/content.tsx:123`), so
   it needs a **nonce**, not `style-src 'unsafe-inline'`. Thread the nonce
@@ -211,10 +235,21 @@ Set in the proxy, applied only to the site host:
   framed, so it gets its own policy. Do not give both routes one policy.
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
 
-**Exit:** CSP violations are zero on a published portfolio **and the page
-renders identically to the app origin**, both verified in a real browser —
-not inferred from headers. Header inspection alone passes while the page is
-visually broken, which is exactly how the `style-src-attr` gap was missed.
+**Exit:** verified in a real browser on a published page that **has an
+interactive node**, against the same document rendered on the app origin as
+a control:
+
+1. zero CSP violations;
+2. the page renders identically to the control;
+3. **the client runtime actually attaches** — the interactive node carries
+   `__reactFiber$`/`__reactProps$` with a real `onClick`, and firing it runs
+   the action end to end.
+
+Criteria 1 and 2 both pass on a fully broken page. A static portfolio needs
+no hydration, so it renders perfectly with every inline script blocked and
+no client runtime loaded — which is how both the `style-src-attr` gap and
+the missing `script-src` nonce survived review. Only criterion 3 catches
+them, and only on a page that has something to hydrate.
 
 **Follow-up (not this plan):** emit base node styles into the nonce'd
 stylesheet keyed on `data-node-id`, the way `buildResponsiveStylesheet`

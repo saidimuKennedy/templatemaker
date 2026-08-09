@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOut } from "@/app/(auth)/_actions";
+import { PlatformChrome } from "@/components/platform-chrome";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
@@ -20,6 +21,7 @@ export default async function DashboardLayout({
   const initials = user.email.slice(0, 2).toUpperCase();
 
   return (
+    <PlatformChrome>
     <div className="flex min-h-screen">
       <DashboardSidebar user={user} initials={initials} signOut={signOut} />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -39,5 +41,6 @@ export default async function DashboardLayout({
         <main className="flex-1">{children}</main>
       </div>
     </div>
+    </PlatformChrome>
   );
 }

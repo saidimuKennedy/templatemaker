@@ -65,6 +65,17 @@ export function createSetNodeEventsCommand(
   };
 }
 
+export function createSetNodeEventOptionsCommand(
+  pageId: PageId,
+  nodeId: string,
+  eventOptions: Readonly<Partial<Record<EventName, import("../actions/types").EventOptions | undefined>>>,
+): Command {
+  return {
+    type: "SetNodeEventOptions",
+    payload: { pageId, nodeId, eventOptions },
+  };
+}
+
 export function createSetPropBindingCommand(
   pageId: PageId,
   nodeId: string,

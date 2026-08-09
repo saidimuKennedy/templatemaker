@@ -26,7 +26,8 @@ describe("host routing helpers", () => {
     expect(isPlatformPath("/dashboard")).toBe(true);
     expect(isPlatformPath("/editor/abc")).toBe(true);
     expect(isPlatformPath("/login")).toBe(true);
-    expect(isPlatformPath("/api/records")).toBe(true);
+    expect(isPlatformPath("/api/platform/ping")).toBe(true);
+    expect(isPlatformPath("/api/records/messages")).toBe(false);
     expect(isPlatformPath("/work")).toBe(false);
   });
 
@@ -63,6 +64,16 @@ describe("host routing helpers", () => {
       expect(buildSiteOriginCsp("abc123", false)).toContain(
         "style-src-attr 'unsafe-inline'",
       );
+    });
+
+    it("nonces script-src so Next's inline flight-data scripts can run", () => {
+      // Next emits ~18 inline `__next_f.push` scripts per page. Under a bare
+      // `script-src 'self'` they are all blocked and hydration never happens,
+      // which is invisible on a page with no interactive nodes and fatal on
+      // the first page carrying a Plan 29 action.
+      const csp = buildSiteOriginCsp("abc123", false);
+      expect(csp).toContain("'nonce-abc123'");
+      expect(csp).not.toMatch(/script-src 'self'\s*;/);
     });
 
     it("nonces the injected stylesheet and blocks framing by default", () => {

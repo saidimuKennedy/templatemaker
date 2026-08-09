@@ -38,9 +38,36 @@ model Portfolio {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resources  Resource[]
 
   @@index([userId])
   @@index([slug])
+}
+
+model Resource {
+  id          String   @id @default(cuid())
+  portfolioId String
+  name        String
+  definition  Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  records     AppRecord[]
+
+  @@unique([portfolioId, name])
+  @@index([portfolioId])
+}
+
+model AppRecord {
+  id         String   @id @default(cuid())
+  resourceId String
+  data       Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([resourceId, createdAt])
 }
 
 enum PortfolioStatus {

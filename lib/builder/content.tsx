@@ -7,6 +7,7 @@ import {
   validateDocumentStructure,
 } from "@/builder/document/validate";
 import { validateDocumentEvents } from "@/builder/document/validate-events";
+import { validateDocumentResources } from "@/builder/document/validate";
 import type { BuilderDocument, BuilderNode, BuilderPage, ValidationResult } from "@/builder/document/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import type { RenderTarget } from "@/builder/renderer/types";
@@ -32,10 +33,20 @@ export function validatePortfolioDocument(
   const structure = validateDocumentStructure(document);
   const registryResult = validateAgainstRegistry(document, registry);
   const eventsResult = validateDocumentEvents(document);
+  const resourcesResult = validateDocumentResources(document);
 
   return {
-    valid: structure.valid && registryResult.valid && eventsResult.valid,
-    errors: [...structure.errors, ...registryResult.errors, ...eventsResult.errors],
+    valid:
+      structure.valid &&
+      registryResult.valid &&
+      eventsResult.valid &&
+      resourcesResult.valid,
+    errors: [
+      ...structure.errors,
+      ...registryResult.errors,
+      ...eventsResult.errors,
+      ...resourcesResult.errors,
+    ],
   };
 }
 

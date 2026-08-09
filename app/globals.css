@@ -55,10 +55,20 @@
   --border: #e4e4e7;
 }
 
+/*
+ * `body` must not paint the platform palette. It is shared with the
+ * published-site origin (Plan 30), where `--background` resolves from the
+ * visitor's `prefers-color-scheme` — which would repaint every published
+ * portfolio to the visitor's OS theme rather than the author's design.
+ * Platform routes get the palette from `.platform-surface` instead.
+ */
 body {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.platform-surface {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 /* Editor panel scrollbars — thin, theme-aware, still grabbable */

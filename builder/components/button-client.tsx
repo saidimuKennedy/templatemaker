@@ -1,6 +1,6 @@
 "use client";
 
-import { readNodeEvents, useNodeEventHandlers } from "../runtime/use-node-events";
+import { readNodeEventOptions, readNodeEvents, useNodeEventHandlers } from "../runtime/use-node-events";
 import { ButtonView, readButtonProps } from "./button-view";
 
 /**
@@ -15,7 +15,7 @@ export function ButtonClientRenderer({
   readonly props: Record<string, unknown>;
   readonly children?: React.ReactNode;
 }) {
-  const handlers = useNodeEventHandlers(readNodeEvents(props));
+  const handlers = useNodeEventHandlers(readNodeEvents(props), readNodeEventOptions(props));
 
   return <ButtonView {...readButtonProps(id, props)} onClick={handlers.onClick} />;
 }

@@ -18,11 +18,14 @@ import type {
   RenameNodePayload,
   ReorderPagePayload,
   SetNodeEventsPayload,
+  SetNodeEventOptionsPayload,
   SetPropBindingPayload,
   ClearPropBindingPayload,
+  DeleteResourcePayload,
   UpdatePagePayload,
   UpdatePropsPayload,
   UpdateStylesPayload,
+  UpsertResourcePayload,
 } from "./types";
 import type { EventName } from "../actions/types";
 import { isBinding } from "../bindings/types";
@@ -230,11 +233,45 @@ function mergeNodeEvents(
     : undefined;
 }
 
+function mergeNodeEventOptions(
+  existing: import("../document/types").BuilderNode["eventOptions"],
+  patch: SetNodeEventOptionsPayload["eventOptions"],
+): import("../document/types").BuilderNode["eventOptions"] {
+  const next: Partial<Record<EventName, import("../actions/types").EventOptions>> = {
+    ...(existing ?? {}),
+  };
+  for (const [key, value] of Object.entries(patch) as [EventName, import("../actions/types").EventOptions | undefined][]) {
+    if (value === undefined) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+  }
+  return Object.keys(next).length > 0
+    ? (next as NonNullable<import("../document/types").BuilderNode["eventOptions"]>)
+    : undefined;
+}
+
 function applySetNodeEvents(document: BuilderDocument, payload: SetNodeEventsPayload): BuilderDocument {
   const page = getPage(document, payload.pageId);
   const newRoot = updateNode(page.root, payload.nodeId, (node) => ({
     ...node,
     events: mergeNodeEvents(node.events, payload.events),
+  }));
+  if (!newRoot) {
+    throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
+  }
+  return replacePage(document, payload.pageId, newRoot);
+}
+
+function applySetNodeEventOptions(
+  document: BuilderDocument,
+  payload: SetNodeEventOptionsPayload,
+): BuilderDocument {
+  const page = getPage(document, payload.pageId);
+  const newRoot = updateNode(page.root, payload.nodeId, (node) => ({
+    ...node,
+    eventOptions: mergeNodeEventOptions(node.eventOptions, payload.eventOptions),
   }));
   if (!newRoot) {
     throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
@@ -268,6 +305,30 @@ function applyClearPropBinding(document: BuilderDocument, payload: ClearPropBind
     throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
   }
   return replacePage(document, payload.pageId, newRoot);
+}
+
+function applyUpsertResource(document: BuilderDocument, payload: UpsertResourcePayload): BuilderDocument {
+  const resources = [...(document.resources ?? [])];
+  const index = resources.findIndex((entry) => entry.name === payload.resource.name);
+  if (index === -1) {
+    resources.push(payload.resource);
+  } else {
+    resources[index] = payload.resource;
+  }
+  return {
+    ...document,
+    resources,
+    meta: { ...document.meta, updatedAt: new Date().toISOString() },
+  };
+}
+
+function applyDeleteResource(document: BuilderDocument, payload: DeleteResourcePayload): BuilderDocument {
+  const resources = (document.resources ?? []).filter((entry) => entry.name !== payload.name);
+  return {
+    ...document,
+    resources: resources.length > 0 ? resources : undefined,
+    meta: { ...document.meta, updatedAt: new Date().toISOString() },
+  };
 }
 
 function applyComposite(document: BuilderDocument, payload: CompositePayload): BuilderDocument {
@@ -315,10 +376,16 @@ function applyCommand(document: BuilderDocument, command: Command): BuilderDocum
       return applyReorderPage(document, command.payload);
     case "SetNodeEvents":
       return applySetNodeEvents(document, command.payload);
+    case "SetNodeEventOptions":
+      return applySetNodeEventOptions(document, command.payload);
     case "SetPropBinding":
       return applySetPropBinding(document, command.payload);
     case "ClearPropBinding":
       return applyClearPropBinding(document, command.payload);
+    case "UpsertResource":
+      return applyUpsertResource(document, command.payload);
+    case "DeleteResource":
+      return applyDeleteResource(document, command.payload);
   }
 }
 
@@ -465,6 +532,28 @@ function invertCommand(document: BuilderDocument, command: Command): Command {
         },
       };
     }
+    case "SetNodeEventOptions": {
+      const page = getPage(document, command.payload.pageId);
+      const found = findNodeAndParent(page.root, command.payload.nodeId);
+      if (!found) {
+        throw new Error(
+          `Cannot invert SetNodeEventOptions: node "${command.payload.nodeId}" not found.`,
+        );
+      }
+      const previous: SetNodeEventOptionsPayload["eventOptions"] = {};
+      for (const key of Object.keys(command.payload.eventOptions) as EventName[]) {
+        (previous as Record<EventName, import("../actions/types").EventOptions | undefined>)[key] =
+          found.node.eventOptions?.[key];
+      }
+      return {
+        type: "SetNodeEventOptions",
+        payload: {
+          pageId: command.payload.pageId,
+          nodeId: command.payload.nodeId,
+          eventOptions: previous,
+        },
+      };
+    }
     case "SetPropBinding": {
       const page = getPage(document, command.payload.pageId);
       const found = findNodeAndParent(page.root, command.payload.nodeId);
@@ -522,6 +611,20 @@ function invertCommand(document: BuilderDocument, command: Command): Command {
           literalValue: current,
         },
       };
+    }
+    case "UpsertResource": {
+      const previous = document.resources?.find((entry) => entry.name === command.payload.resource.name);
+      if (previous) {
+        return { type: "UpsertResource", payload: { resource: previous } };
+      }
+      return { type: "DeleteResource", payload: { name: command.payload.resource.name } };
+    }
+    case "DeleteResource": {
+      const previous = document.resources?.find((entry) => entry.name === command.payload.name);
+      if (!previous) {
+        throw new Error(`Cannot invert DeleteResource: resource "${command.payload.name}" not found.`);
+      }
+      return { type: "UpsertResource", payload: { resource: previous } };
     }
   }
 }

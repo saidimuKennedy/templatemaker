@@ -8,9 +8,11 @@ import {
   extractSiteSlug,
   generateCspNonce,
   getSitesHost,
+  isAppRuntimeApiPath,
   isEmbedInternalPath,
   isPlatformPath,
   isSiteHost,
+  SITE_SLUG_HEADER,
   siteOriginRewritePath,
 } from "@/lib/hosts";
 
@@ -28,13 +30,8 @@ function redirectToLogin(request: NextRequest): NextResponse {
   return NextResponse.redirect(loginUrl);
 }
 
-function applySiteSecurityHeaders(
-  response: NextResponse,
-  internalPath: string,
-  nonce: string,
-): void {
-  const embed = isEmbedInternalPath(internalPath);
-  response.headers.set("Content-Security-Policy", buildSiteOriginCsp(nonce, embed));
+function applySiteSecurityHeaders(response: NextResponse, csp: string): void {
+  response.headers.set("Content-Security-Policy", csp);
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 }
@@ -54,6 +51,12 @@ export function proxy(request: NextRequest) {
       return new NextResponse(null, { status: 404 });
     }
 
+    if (isAppRuntimeApiPath(pathname)) {
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set(SITE_SLUG_HEADER, slug);
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+
     if (isPlatformPath(pathname)) {
       return new NextResponse(null, { status: 404 });
     }
@@ -63,13 +66,20 @@ export function proxy(request: NextRequest) {
     rewriteUrl.pathname = rewritePath;
 
     const nonce = generateCspNonce();
+    const csp = buildSiteOriginCsp(nonce, isEmbedInternalPath(pathname));
+
     const requestHeaders = new Headers(request.headers);
+    // CSP_NONCE_HEADER is read by `readPublishedStyleNonce` for the one
+    // <style> tag this app emits itself. The Content-Security-Policy request
+    // header is what Next parses to nonce its OWN inline scripts — both are
+    // required, and they must carry the same nonce as the response header.
     requestHeaders.set(CSP_NONCE_HEADER, nonce);
+    requestHeaders.set("Content-Security-Policy", csp);
 
     const response = NextResponse.rewrite(rewriteUrl, {
       request: { headers: requestHeaders },
     });
-    applySiteSecurityHeaders(response, pathname, nonce);
+    applySiteSecurityHeaders(response, csp);
     return response;
   }
 
@@ -86,6 +96,10 @@ export function proxy(request: NextRequest) {
       `${protocol}//${publishedRedirect.slug}.${sitesHost}${publishedRedirect.sitePath}`,
     );
     return NextResponse.redirect(destination, 301);
+  }
+
+  if (isAppRuntimeApiPath(pathname)) {
+    return new NextResponse(null, { status: 404 });
   }
 
   if (isProtectedPath(pathname)) {

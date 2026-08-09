@@ -6,7 +6,8 @@
  * canvas, or AI state may exist outside of it.
  */
 
-import type { ActionStep, EventName } from "../actions/types";
+import type { ActionStep, EventName, EventOptions } from "../actions/types";
+import type { ResourceDefinition } from "../resources/types";
 
 /** Opaque node identifier, unique within a BuilderProject. */
 export type NodeId = string;
@@ -63,6 +64,10 @@ export interface BuilderNode {
    * required to declare `onSubmit` and `onChange` as well.
    */
   readonly events?: Readonly<Partial<Record<EventName, readonly ActionStep[]>>>;
+  /**
+   * Per-event handler options. Absent keys inherit runtime defaults.
+   */
+  readonly eventOptions?: Readonly<Partial<Record<EventName, EventOptions>>>;
 }
 
 /** A single page: a name/route plus a root node tree. */
@@ -90,6 +95,8 @@ export interface BuilderProject {
   readonly name: string;
   readonly meta: BuilderDocumentMeta;
   readonly pages: readonly BuilderPage[];
+  /** Application data schemas (Plan 31). Absent on legacy documents. */
+  readonly resources?: readonly ResourceDefinition[];
 }
 
 /**

@@ -93,8 +93,8 @@ first for that reason.
 ## Alternatives considered
 
 - **Keep the v1 exclusions and stop.** Rejected: the owner wants the
-  product to reach parity with tools like Webflow on interaction and
-  authoring speed.
+  product to reach parity with comparable visual editors on interaction and
+  authoring speed. (WEBFLOW-DEV-REF: remove external product name before release.)
 - **Bounded trigger→effect animations instead of a timeline.** Offered
   and explicitly declined in favour of the full timeline.
 - **Ship AI before versioning.** Rejected: no restore path while an

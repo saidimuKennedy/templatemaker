@@ -19,6 +19,14 @@ dashboard. In development, use:
 | Published site for slug `alice` | [http://alice.sites.localhost:3000](http://alice.sites.localhost:3000) |
 
 `*.localhost` resolves in current browsers without a hosts-file entry.
+
+Because the site origin differs from the `localhost` the dev server binds
+to, `next.config.ts` must keep `allowedDevOrigins: ["*.sites.localhost"]`.
+Without it Next blocks its own dev assets cross-origin and published pages
+load with **no client runtime at all** — no HMR, no hydration, and no error
+of any kind. Static pages still look correct, so the symptom only shows up
+as buttons and actions silently doing nothing.
+
 Configure overrides with environment variables:
 
 ```bash
@@ -35,6 +43,8 @@ NEXT_PUBLIC_SITES_HOST=sites.localhost:3000
 2. **`__Host-` cookie prefix** — requires `Secure`, so the session cookie
    keeps the unprefixed `auth_session` name over plain `http://` in
    development. Production uses `__Host-auth_session`.
+3. **`'unsafe-eval'` in the site-origin CSP** — development only, because
+   React uses `eval` to rebuild server stack traces. Production omits it.
 
 On the app origin, `/p/{slug}` and `/embed/{slug}` **301 redirect** to the
 site origin. Platform routes (`/dashboard`, `/login`, `/api/...`) return

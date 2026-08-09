@@ -1,5 +1,8 @@
 # Plan 21 — Webflow Editor Alignment (Navigator + Style Panel)
 
+> **WEBFLOW-DEV-REF:** remove or rename this plan before release. Temporary
+> reference to an external editor product during development.
+
 ## Objective
 
 The editor's shell does not match the mental model of the people who

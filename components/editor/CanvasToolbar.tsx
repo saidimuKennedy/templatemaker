@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Toolbox } from "@/components/editor/Toolbox";
-import { ViewportToggle } from "@/components/editor/ViewportToggle";
 import { AIPanel } from "@/components/editor/AIPanel";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,8 +19,7 @@ import type { ToastActionElement } from "@/components/ui/toast";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import type { BuilderDocument } from "@/builder/document/types";
 import type { EditorSession } from "@/builder/history/session";
-import type { Breakpoint } from "@/builder/styles/types";
-import { ChevronDown, ChevronUp, Copy, Download, EyeOff, Plus, Redo2, Save, Undo2, Upload } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Plus, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TOOLBAR_VISIBLE_KEY = "editor-canvas-toolbar-visible";
@@ -53,20 +51,9 @@ type CanvasToolbarProps = {
     action?: ToastActionElement;
   }) => { id: string; dismiss: () => void };
   readonly onAdd: (componentType: string) => void;
-  readonly viewport: Breakpoint;
-  readonly onViewportChange: (value: Breakpoint) => void;
   readonly pending: boolean;
   readonly onSave: () => void;
-  readonly status: string;
-  readonly slug: string | null;
-  readonly onPublish: () => void;
-  readonly onUnpublish: () => void;
-  readonly onCopyEmbed: () => void;
   readonly onExport: () => void;
-  readonly canUndo: boolean;
-  readonly canRedo: boolean;
-  readonly onUndo: () => void;
-  readonly onRedo: () => void;
 };
 
 export function CanvasToolbar({
@@ -77,24 +64,12 @@ export function CanvasToolbar({
   onRevertSnapshot,
   toast,
   onAdd,
-  viewport,
-  onViewportChange,
   pending,
   onSave,
-  status,
-  slug,
-  onPublish,
-  onUnpublish,
-  onCopyEmbed,
   onExport,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
 }: CanvasToolbarProps) {
   const [visible, setVisible] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const isPublished = status === "PUBLISHED";
 
   useEffect(() => {
     const stored = window.localStorage.getItem(TOOLBAR_VISIBLE_KEY);
@@ -164,43 +139,6 @@ export function CanvasToolbar({
 
             <ToolbarDivider />
 
-            <ToolbarTooltip label="Undo">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={pillButtonClass}
-                disabled={!canUndo}
-                onClick={onUndo}
-                aria-label="Undo"
-              >
-                <Undo2 className="h-4 w-4" />
-              </Button>
-            </ToolbarTooltip>
-
-            <ToolbarTooltip label="Redo">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={pillButtonClass}
-                disabled={!canRedo}
-                onClick={onRedo}
-                aria-label="Redo"
-              >
-                <Redo2 className="h-4 w-4" />
-              </Button>
-            </ToolbarTooltip>
-
-            <ToolbarDivider />
-
-            <ViewportToggle
-              value={viewport}
-              onChange={onViewportChange}
-              variant="pill"
-              tooltipSide="top"
-            />
-
             <ToolbarTooltip label="Save">
               <Button
                 type="button"
@@ -214,51 +152,6 @@ export function CanvasToolbar({
                 <Save className="h-4 w-4" />
               </Button>
             </ToolbarTooltip>
-
-            {isPublished ? (
-              <ToolbarTooltip label="Unpublish">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={pillButtonClass}
-                  disabled={pending}
-                  onClick={onUnpublish}
-                  aria-label="Unpublish"
-                >
-                  <EyeOff className="h-4 w-4" />
-                </Button>
-              </ToolbarTooltip>
-            ) : (
-              <ToolbarTooltip label="Publish">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={pillButtonClass}
-                  disabled={pending}
-                  onClick={onPublish}
-                  aria-label="Publish"
-                >
-                  <Upload className="h-4 w-4" />
-                </Button>
-              </ToolbarTooltip>
-            )}
-
-            {isPublished && slug ? (
-              <ToolbarTooltip label="Copy embed code">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={pillButtonClass}
-                  onClick={onCopyEmbed}
-                  aria-label="Copy embed code"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </ToolbarTooltip>
-            ) : null}
 
             <ToolbarTooltip label="Export JSON">
               <Button

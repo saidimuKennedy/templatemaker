@@ -1,5 +1,5 @@
 import type { BuilderDocument } from "../document/types";
-import { validateAgainstRegistry, validateDocumentStructure } from "../document/validate";
+import { validateAgainstRegistry, validateDocumentResources, validateDocumentStructure } from "../document/validate";
 import type { ComponentRegistry } from "../registry/types";
 import { createRenderer } from "../renderer/renderer";
 import type { Renderer } from "../renderer/types";
@@ -12,11 +12,12 @@ export function publish(
 ): PublishOutcome {
   const structureResult = validateDocumentStructure(document);
   const registryResult = validateAgainstRegistry(document, registry);
+  const resourcesResult = validateDocumentResources(document);
 
-  if (!structureResult.valid || !registryResult.valid) {
+  if (!structureResult.valid || !registryResult.valid || !resourcesResult.valid) {
     return {
       ok: false,
-      errors: [...structureResult.errors, ...registryResult.errors],
+      errors: [...structureResult.errors, ...registryResult.errors, ...resourcesResult.errors],
     };
   }
 

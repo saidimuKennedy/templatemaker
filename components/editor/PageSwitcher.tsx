@@ -188,23 +188,6 @@ export function PageSwitcher({
         >
           <FilePlus className="h-3.5 w-3.5" />
         </Button>
-
-        {currentPage ? (
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 shrink-0 p-0"
-                aria-label="Page actions"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </Button>
-            </ContextMenuTrigger>
-            {pageContextMenu(currentPage)}
-          </ContextMenu>
-        ) : null}
       </div>
 
       <PageSettingsDialog
