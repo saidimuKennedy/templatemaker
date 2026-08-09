@@ -1,4 +1,5 @@
 import type { BuilderNode, PageId } from "../document/types";
+import type { ActionStep, EventName } from "../actions/types";
 import type { Command } from "../history/types";
 
 export function createUpdatePropsCommand(
@@ -50,5 +51,41 @@ export function createRenameNodeCommand(
       nodeId: node.id,
       name: normalizeNodeName(name),
     },
+  };
+}
+
+export function createSetNodeEventsCommand(
+  pageId: PageId,
+  nodeId: string,
+  events: Readonly<Partial<Record<EventName, readonly ActionStep[] | undefined>>>,
+): Command {
+  return {
+    type: "SetNodeEvents",
+    payload: { pageId, nodeId, events },
+  };
+}
+
+export function createSetPropBindingCommand(
+  pageId: PageId,
+  nodeId: string,
+  key: string,
+  bindPath: string,
+  fallback?: unknown,
+): Command {
+  return {
+    type: "SetPropBinding",
+    payload: { pageId, nodeId, key, bindPath, fallback },
+  };
+}
+
+export function createClearPropBindingCommand(
+  pageId: PageId,
+  nodeId: string,
+  key: string,
+  literalValue: unknown,
+): Command {
+  return {
+    type: "ClearPropBinding",
+    payload: { pageId, nodeId, key, literalValue },
   };
 }

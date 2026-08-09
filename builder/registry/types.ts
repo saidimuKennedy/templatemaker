@@ -101,6 +101,18 @@ export interface ComponentDefinition {
   readonly resolveStyleDefaults?: (props: NodeProps) => CSSProperties;
   /** Prop keys owned by layout intent — migrated to styles, not Content tab. */
   readonly layoutPropKeys?: readonly string[];
+  /** Whether this component needs the client runtime. Default "server". */
+  readonly runtime?: "server" | "client";
+  /**
+   * Client-component variant, rendered instead of `renderer` when a node
+   * actually declares `events` and the runtime is enabled.
+   *
+   * Kept separate from `renderer` so a static instance of the same component
+   * still renders entirely on the server and ships no JavaScript (ADR-012 §3).
+   * Handlers are built inside this component from the serializable `events`
+   * bag — functions must never be passed across the server/client boundary.
+   */
+  readonly clientRenderer?: ComponentRenderer;
 }
 
 /** The registry surface consumed by the toolbox, canvas, and renderer. */

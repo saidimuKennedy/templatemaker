@@ -6,12 +6,15 @@ import {
   validateAgainstRegistry,
   validateDocumentStructure,
 } from "@/builder/document/validate";
+import { validateDocumentEvents } from "@/builder/document/validate-events";
 import type { BuilderDocument, BuilderNode, BuilderPage, ValidationResult } from "@/builder/document/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import type { RenderTarget } from "@/builder/renderer/types";
 import { createRenderer } from "@/builder/renderer/renderer";
 import { createStyledRenderer } from "@/builder/styles/apply";
 import { buildResponsiveStylesheet } from "@/builder/styles/responsive";
+import { pageNeedsRuntime } from "@/builder/runtime/needs-runtime";
+import { BuilderRuntimeProvider } from "@/builder/runtime/BuilderRuntimeProvider";
 
 export function parseBuilderContent(raw: Prisma.JsonValue): BuilderDocument | undefined {
   try {
@@ -27,10 +30,11 @@ export function validatePortfolioDocument(
 ): ValidationResult {
   const structure = validateDocumentStructure(document);
   const registryResult = validateAgainstRegistry(document, registry);
+  const eventsResult = validateDocumentEvents(document);
 
   return {
-    valid: structure.valid && registryResult.valid,
-    errors: [...structure.errors, ...registryResult.errors],
+    valid: structure.valid && registryResult.valid && eventsResult.valid,
+    errors: [...structure.errors, ...registryResult.errors, ...eventsResult.errors],
   };
 }
 
@@ -110,20 +114,28 @@ function renderResponsivePage(
   basePath?: string,
 ): ReactElement {
   const renderer = createStyledRenderer(createRenderer(), "base");
+  const needsRuntime = pageNeedsRuntime(page, registry);
   const tree = renderer.renderPage(page, {
     registry,
     target,
     pages: document.pages,
     basePath,
+    enableRuntime: needsRuntime,
   });
   const stylesheet = buildResponsiveStylesheet(document);
 
-  return (
+  const content = (
     <Fragment>
       {stylesheet ? <style dangerouslySetInnerHTML={{ __html: stylesheet }} /> : null}
       {tree}
     </Fragment>
   );
+
+  if (!needsRuntime) {
+    return content;
+  }
+
+  return <BuilderRuntimeProvider>{content}</BuilderRuntimeProvider>;
 }
 
 function renderResponsive(

@@ -6,6 +6,7 @@
  */
 
 import type { ReactElement } from "react";
+import type { BindingScope } from "../bindings/resolve";
 import type { BuilderDocument, BuilderPage } from "../document/types";
 import type { ComponentRegistry } from "../registry/types";
 
@@ -31,6 +32,10 @@ export interface RenderContext {
    * editor canvas, where links are not navigated anyway.
    */
   readonly basePath?: string;
+  /** Scope for binding resolution at render time. Omit for empty scope (fallbacks). */
+  readonly bindingScope?: BindingScope;
+  /** When true, resolve bindings and attach event handlers (client runtime). */
+  readonly enableRuntime?: boolean;
 }
 
 /**

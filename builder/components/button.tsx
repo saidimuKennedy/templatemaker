@@ -1,4 +1,6 @@
 import type { ComponentDefinition } from "../registry/types";
+import { ButtonClientRenderer } from "./button-client";
+import { ButtonView, readButtonProps } from "./button-view";
 
 function ButtonIcon() {
   return (
@@ -8,6 +10,11 @@ function ButtonIcon() {
   );
 }
 
+/**
+ * Static Button — a server component. Handlers are never accepted here:
+ * an interactive Button renders through `clientRenderer` instead, so a
+ * Button without events costs no JavaScript.
+ */
 function ButtonRenderer({
   id,
   props,
@@ -16,23 +23,7 @@ function ButtonRenderer({
   readonly props: Record<string, unknown>;
   readonly children?: React.ReactNode;
 }) {
-  const label = typeof props.label === "string" ? props.label : "Button";
-  const href = typeof props.href === "string" && props.href.length > 0 ? props.href : undefined;
-  const style = props.style as React.CSSProperties | undefined;
-
-  if (href) {
-    return (
-      <a data-node-type="Button" data-node-id={id} href={href} role="button" style={style}>
-        {label}
-      </a>
-    );
-  }
-
-  return (
-    <button type="button" data-node-type="Button" data-node-id={id} style={style}>
-      {label}
-    </button>
-  );
+  return <ButtonView {...readButtonProps(id, props)} />;
 }
 
 export const ButtonComponent: ComponentDefinition = {
@@ -42,6 +33,7 @@ export const ButtonComponent: ComponentDefinition = {
   category: "Interaction",
   icon: ButtonIcon,
   renderer: ButtonRenderer,
+  clientRenderer: ButtonClientRenderer,
   defaultProps: { label: "Button", href: "" },
   propertySchema: [
     {

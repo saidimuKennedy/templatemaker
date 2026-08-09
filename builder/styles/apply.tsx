@@ -6,9 +6,12 @@
 import { Fragment, type CSSProperties, type ReactElement } from "react";
 import type { BuilderDocument, BuilderNode, BuilderPage, NodeProps } from "../document/types";
 import type { ComponentDefinition, ComponentRenderer } from "../registry/types";
+import { resolveProps, type BindingScope } from "../bindings/resolve";
+import { containsBinding } from "../bindings/types";
 import { mergePageLinksIntoProps } from "../pages/resolve-links";
 import { shouldShowEmptyPlaceholder } from "../renderer/empty-state";
 import type { RenderContext, Renderer } from "../renderer/types";
+import { selectRenderer } from "../renderer/select-renderer";
 import { resolveNodeStyle } from "./resolve";
 import { defaultTokens } from "./tokens";
 import type { Breakpoint, DesignTokens, NodeStyleRules, StyledProps } from "./types";
@@ -104,19 +107,27 @@ function renderStyledNode(
     );
   }
 
-  const Component = definition.renderer;
   const children = node.children.map((child) =>
     renderStyledNode(child, context, breakpoint, tokens),
   );
-  const styledProps = mergeStyleIntoProps(node, breakpoint, tokens);
-  const props = {
-    ...mergePageLinksIntoProps(node, styledProps, context.pages, context.basePath),
-    showEmptyPlaceholder: shouldShowEmptyPlaceholder(
-      node,
-      context.target,
-      styledProps.style as CSSProperties | undefined,
-    ),
-  };
+  let styledProps = mergeStyleIntoProps(node, breakpoint, tokens);
+  if (context.enableRuntime && containsBinding(node.props)) {
+    const scope: BindingScope = context.bindingScope ?? {};
+    styledProps = resolveProps(styledProps, scope);
+  }
+  const { Component, props } = selectRenderer(
+    node,
+    definition,
+    {
+      ...mergePageLinksIntoProps(node, styledProps, context.pages, context.basePath),
+      showEmptyPlaceholder: shouldShowEmptyPlaceholder(
+        node,
+        context.target,
+        styledProps.style as CSSProperties | undefined,
+      ),
+    },
+    context.enableRuntime === true,
+  );
 
   return (
     <Component key={node.id} id={node.id} props={props}>

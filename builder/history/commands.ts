@@ -17,10 +17,15 @@ import type {
   MoveNodePayload,
   RenameNodePayload,
   ReorderPagePayload,
+  SetNodeEventsPayload,
+  SetPropBindingPayload,
+  ClearPropBindingPayload,
   UpdatePagePayload,
   UpdatePropsPayload,
   UpdateStylesPayload,
 } from "./types";
+import type { EventName } from "../actions/types";
+import { isBinding } from "../bindings/types";
 import { normalizePagePath } from "../pages/normalize-path";
 
 function normalizeNodeName(name: string | undefined): string | undefined {
@@ -206,6 +211,65 @@ function applyReorderPage(document: BuilderDocument, payload: ReorderPagePayload
   };
 }
 
+function mergeNodeEvents(
+  existing: import("../document/types").BuilderNode["events"],
+  patch: SetNodeEventsPayload["events"],
+): import("../document/types").BuilderNode["events"] {
+  const next: Partial<Record<EventName, readonly import("../actions/types").ActionStep[]>> = {
+    ...(existing ?? {}),
+  };
+  for (const [key, value] of Object.entries(patch) as [EventName, readonly import("../actions/types").ActionStep[] | undefined][]) {
+    if (value === undefined) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+  }
+  return Object.keys(next).length > 0
+    ? (next as NonNullable<import("../document/types").BuilderNode["events"]>)
+    : undefined;
+}
+
+function applySetNodeEvents(document: BuilderDocument, payload: SetNodeEventsPayload): BuilderDocument {
+  const page = getPage(document, payload.pageId);
+  const newRoot = updateNode(page.root, payload.nodeId, (node) => ({
+    ...node,
+    events: mergeNodeEvents(node.events, payload.events),
+  }));
+  if (!newRoot) {
+    throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
+  }
+  return replacePage(document, payload.pageId, newRoot);
+}
+
+function applySetPropBinding(document: BuilderDocument, payload: SetPropBindingPayload): BuilderDocument {
+  const page = getPage(document, payload.pageId);
+  const binding = {
+    $bind: payload.bindPath,
+    ...(payload.fallback !== undefined ? { fallback: payload.fallback } : {}),
+  };
+  const newRoot = updateNode(page.root, payload.nodeId, (node) => ({
+    ...node,
+    props: { ...node.props, [payload.key]: binding },
+  }));
+  if (!newRoot) {
+    throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
+  }
+  return replacePage(document, payload.pageId, newRoot);
+}
+
+function applyClearPropBinding(document: BuilderDocument, payload: ClearPropBindingPayload): BuilderDocument {
+  const page = getPage(document, payload.pageId);
+  const newRoot = updateNode(page.root, payload.nodeId, (node) => ({
+    ...node,
+    props: { ...node.props, [payload.key]: payload.literalValue },
+  }));
+  if (!newRoot) {
+    throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
+  }
+  return replacePage(document, payload.pageId, newRoot);
+}
+
 function applyComposite(document: BuilderDocument, payload: CompositePayload): BuilderDocument {
   let currentDocument = document;
   const applied: Command[] = [];
@@ -249,6 +313,12 @@ function applyCommand(document: BuilderDocument, command: Command): BuilderDocum
       return applyUpdatePage(document, command.payload);
     case "ReorderPage":
       return applyReorderPage(document, command.payload);
+    case "SetNodeEvents":
+      return applySetNodeEvents(document, command.payload);
+    case "SetPropBinding":
+      return applySetPropBinding(document, command.payload);
+    case "ClearPropBinding":
+      return applyClearPropBinding(document, command.payload);
   }
 }
 
@@ -373,6 +443,84 @@ function invertCommand(document: BuilderDocument, command: Command): Command {
       return {
         type: "ReorderPage",
         payload: { pageId: command.payload.pageId, newIndex: currentIndex },
+      };
+    }
+    case "SetNodeEvents": {
+      const page = getPage(document, command.payload.pageId);
+      const found = findNodeAndParent(page.root, command.payload.nodeId);
+      if (!found) {
+        throw new Error(`Cannot invert SetNodeEvents: node "${command.payload.nodeId}" not found.`);
+      }
+      const previous: SetNodeEventsPayload["events"] = {};
+      for (const key of Object.keys(command.payload.events) as EventName[]) {
+        (previous as Record<EventName, readonly import("../actions/types").ActionStep[] | undefined>)[key] =
+          found.node.events?.[key];
+      }
+      return {
+        type: "SetNodeEvents",
+        payload: {
+          pageId: command.payload.pageId,
+          nodeId: command.payload.nodeId,
+          events: previous,
+        },
+      };
+    }
+    case "SetPropBinding": {
+      const page = getPage(document, command.payload.pageId);
+      const found = findNodeAndParent(page.root, command.payload.nodeId);
+      if (!found) {
+        throw new Error(`Cannot invert SetPropBinding: node "${command.payload.nodeId}" not found.`);
+      }
+      const current = found.node.props[command.payload.key];
+      if (isBinding(current)) {
+        return {
+          type: "SetPropBinding",
+          payload: {
+            pageId: command.payload.pageId,
+            nodeId: command.payload.nodeId,
+            key: command.payload.key,
+            bindPath: current.$bind,
+            fallback: current.fallback,
+          },
+        };
+      }
+      return {
+        type: "ClearPropBinding",
+        payload: {
+          pageId: command.payload.pageId,
+          nodeId: command.payload.nodeId,
+          key: command.payload.key,
+          literalValue: current,
+        },
+      };
+    }
+    case "ClearPropBinding": {
+      const page = getPage(document, command.payload.pageId);
+      const found = findNodeAndParent(page.root, command.payload.nodeId);
+      if (!found) {
+        throw new Error(`Cannot invert ClearPropBinding: node "${command.payload.nodeId}" not found.`);
+      }
+      const current = found.node.props[command.payload.key];
+      if (isBinding(current)) {
+        return {
+          type: "SetPropBinding",
+          payload: {
+            pageId: command.payload.pageId,
+            nodeId: command.payload.nodeId,
+            key: command.payload.key,
+            bindPath: current.$bind,
+            fallback: current.fallback,
+          },
+        };
+      }
+      return {
+        type: "ClearPropBinding",
+        payload: {
+          pageId: command.payload.pageId,
+          nodeId: command.payload.nodeId,
+          key: command.payload.key,
+          literalValue: current,
+        },
       };
     }
   }

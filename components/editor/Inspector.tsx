@@ -5,6 +5,8 @@ import { findNodeAndParent } from "@/builder/document/tree";
 import type { BuilderDocument, BuilderPage, NodeId, PageId } from "@/builder/document/types";
 import {
   buildInspectorModel,
+  createClearPropBindingCommand,
+  createSetPropBindingCommand,
   createUpdatePropsCommand,
   validateFieldValue,
 } from "@/builder/inspector";
@@ -12,8 +14,10 @@ import type { InspectorField } from "@/builder/inspector/types";
 import type { Command } from "@/builder/history/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import type { Breakpoint } from "@/builder/styles/types";
+import { isBinding } from "@/builder/bindings/types";
 import { isBrokenPageLink } from "@/builder/pages/resolve-links";
 import { StyleInspector } from "@/components/editor/StyleInspector";
+import { InteractionsPanelEditor } from "@/components/editor/InteractionsPanelEditor";
 import { ImageFieldControl } from "@/components/editor/ImageFieldControl";
 import { PageFieldControl } from "@/components/editor/PageFieldControl";
 import { Input } from "@/components/ui/input";
@@ -54,21 +58,87 @@ function FieldHint({ field }: { readonly field: InspectorField }) {
   );
 }
 
+function BindingToggle({
+  bound,
+  onToggle,
+}: {
+  readonly bound: boolean;
+  readonly onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        bound
+          ? "shrink-0 rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
+          : "shrink-0 rounded border border-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
+      }
+      onClick={onToggle}
+    >
+      {bound ? "Bound" : "Bind"}
+    </button>
+  );
+}
+
 function FieldControl({
   field,
   error,
   pages,
   brokenPageLink,
+  bound,
+  bindPath,
+  onToggleBinding,
+  onBindPathChange,
   onChange,
 }: {
   readonly field: InspectorField;
   readonly error?: string;
   readonly pages: readonly BuilderPage[];
   readonly brokenPageLink?: boolean;
+  readonly bound?: boolean;
+  readonly bindPath?: string;
+  readonly onToggleBinding?: () => void;
+  readonly onBindPathChange?: (path: string) => void;
   readonly onChange: (value: unknown) => void;
 }) {
   const invalid = Boolean(error);
   const describedBy = field.description ? `${field.key}-hint` : undefined;
+
+  if (bound) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1">
+            <Label htmlFor={field.key}>{field.label}</Label>
+            <FieldHint field={field} />
+          </div>
+          <BindingToggle bound onToggle={onToggleBinding!} />
+        </div>
+        <Input
+          id={field.key}
+          type="text"
+          value={bindPath ?? ""}
+          placeholder="vars.myField"
+          className="font-mono text-xs"
+          aria-describedby={describedBy}
+          onChange={(event) => onBindPathChange?.(event.target.value)}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Resolved at runtime from scope.path. Click Bound to switch back to a literal value.
+        </p>
+      </div>
+    );
+  }
+
+  const header = (
+    <div className="flex items-start justify-between gap-2">
+      <div className="space-y-1">
+        <Label htmlFor={field.key}>{field.label}</Label>
+        <FieldHint field={field} />
+      </div>
+      {onToggleBinding ? <BindingToggle bound={false} onToggle={onToggleBinding} /> : null}
+    </div>
+  );
 
   if (field.type === "boolean") {
     return (
@@ -90,10 +160,7 @@ function FieldControl({
   if (field.type === "select") {
     return (
       <div className="space-y-2">
-        <div className="space-y-1">
-          <Label htmlFor={field.key}>{field.label}</Label>
-          <FieldHint field={field} />
-        </div>
+        {header}
         <Select
           value={typeof field.value === "string" ? field.value : ""}
           onValueChange={(value) => onChange(value)}
@@ -116,10 +183,7 @@ function FieldControl({
   if (field.type === "richtext") {
     return (
       <div className="space-y-2">
-        <div className="space-y-1">
-          <Label htmlFor={field.key}>{field.label}</Label>
-          <FieldHint field={field} />
-        </div>
+        {header}
         <Textarea
           id={field.key}
           value={typeof field.value === "string" ? field.value : ""}
@@ -134,10 +198,7 @@ function FieldControl({
   if (field.type === "number") {
     return (
       <div className="space-y-2">
-        <div className="space-y-1">
-          <Label htmlFor={field.key}>{field.label}</Label>
-          <FieldHint field={field} />
-        </div>
+        {header}
         <Input
           id={field.key}
           type="number"
@@ -155,10 +216,7 @@ function FieldControl({
     const pickerValue = /^#[0-9a-fA-F]{6}$/.test(textValue) ? textValue : "#000000";
     return (
       <div className="space-y-2">
-        <div className="space-y-1">
-          <Label htmlFor={field.key}>{field.label}</Label>
-          <FieldHint field={field} />
-        </div>
+        {header}
         <div className="flex items-center gap-2">
           <input
             id={`${field.key}-swatch`}
@@ -186,39 +244,42 @@ function FieldControl({
   if (field.type === "image") {
     const urlValue = typeof field.value === "string" ? field.value : "";
     return (
-      <ImageFieldControl
-        fieldKey={field.key}
-        label={field.label}
-        description={field.description}
-        value={urlValue}
-        invalid={invalid}
-        onChange={onChange}
-      />
+      <div className="space-y-2">
+        {header}
+        <ImageFieldControl
+          fieldKey={field.key}
+          label={field.label}
+          description={field.description}
+          value={urlValue}
+          invalid={invalid}
+          onChange={onChange}
+        />
+      </div>
     );
   }
 
   if (field.type === "page") {
     const pageValue = typeof field.value === "string" ? field.value : "";
     return (
-      <PageFieldControl
-        fieldKey={field.key}
-        label={field.label}
-        description={field.description}
-        value={pageValue}
-        pages={pages}
-        invalid={invalid}
-        broken={brokenPageLink}
-        onChange={onChange}
-      />
+      <div className="space-y-2">
+        {header}
+        <PageFieldControl
+          fieldKey={field.key}
+          label={field.label}
+          description={field.description}
+          value={pageValue}
+          pages={pages}
+          invalid={invalid}
+          broken={brokenPageLink}
+          onChange={onChange}
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      <div className="space-y-1">
-        <Label htmlFor={field.key}>{field.label}</Label>
-        <FieldHint field={field} />
-      </div>
+      {header}
       <Input
         id={field.key}
         type="text"
@@ -321,6 +382,38 @@ export function Inspector({
     onCommand(createUpdatePropsCommand(pageId, found.node, field.key, value));
   };
 
+  const handleToggleBinding = (field: InspectorField) => {
+    const raw = found.node.props[field.key];
+    if (isBinding(raw)) {
+      const fallback =
+        raw.fallback ??
+        definition?.propertySchema.find((entry) => entry.key === field.key)?.defaultValue ??
+        "";
+      onCommand(
+        createClearPropBindingCommand(pageId, found.node.id, field.key, fallback),
+      );
+      return;
+    }
+    const literal = raw ?? field.value;
+    onCommand(
+      createSetPropBindingCommand(
+        pageId,
+        found.node.id,
+        field.key,
+        "vars.example",
+        literal,
+      ),
+    );
+  };
+
+  const handleBindPathChange = (field: InspectorField, path: string) => {
+    const raw = found.node.props[field.key];
+    const fallback = isBinding(raw) ? raw.fallback : field.value;
+    onCommand(
+      createSetPropBindingCommand(pageId, found.node.id, field.key, path, fallback),
+    );
+  };
+
   const contentPanel = model ? (
     <div className="space-y-4">
       {model.componentDescription ? (
@@ -336,20 +429,34 @@ export function Inspector({
         </p>
       ) : null}
       <div className="space-y-4">
-        {visibleFields.map((field) => (
+        {visibleFields.map((field) => {
+          const rawValue = found.node.props[field.key];
+          const bound = isBinding(rawValue);
+          return (
           <div key={field.key} className="space-y-1">
             <FieldControl
               field={field}
               error={fieldErrors[field.key]}
               pages={document.pages}
               brokenPageLink={field.key === "pageId" ? brokenPageLink : undefined}
+              bound={bound}
+              bindPath={bound ? rawValue.$bind : undefined}
+              onToggleBinding={
+                field.type === "boolean" || field.type === "page" || field.type === "image"
+                  ? undefined
+                  : () => handleToggleBinding(field)
+              }
+              onBindPathChange={
+                bound ? (path) => handleBindPathChange(field, path) : undefined
+              }
               onChange={(value) => handleFieldChange(field, value)}
             />
             {fieldErrors[field.key] ? (
               <p className="text-xs text-red-600">{fieldErrors[field.key]}</p>
             ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   ) : (
@@ -396,6 +503,12 @@ export function Inspector({
           >
             Design
           </TabsTrigger>
+          <TabsTrigger
+            value="interactions"
+            className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 pt-1.5 text-sm font-normal text-muted-foreground shadow-none data-[state=active]:-mb-px data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            Interactions
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="content" className="mt-0 flex-1 overflow-y-auto p-4">
           {contentPanel}
@@ -406,6 +519,13 @@ export function Inspector({
             node={found.node}
             breakpoint={viewport}
             registry={registry}
+            onCommand={onCommand}
+          />
+        </TabsContent>
+        <TabsContent value="interactions" className="mt-0 flex-1 overflow-y-auto p-4">
+          <InteractionsPanelEditor
+            pageId={pageId}
+            node={found.node}
             onCommand={onCommand}
           />
         </TabsContent>

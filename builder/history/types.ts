@@ -17,6 +17,7 @@ import type {
   NodeStyles,
   PageId,
 } from "../document/types";
+import type { ActionStep, EventName } from "../actions/types";
 
 export interface CreateNodePayload {
   readonly pageId: PageId;
@@ -84,6 +85,29 @@ export interface ReorderPagePayload {
   readonly newIndex: number;
 }
 
+export interface SetNodeEventsPayload {
+  readonly pageId: PageId;
+  readonly nodeId: NodeId;
+  /** Omit a key to leave it unchanged; pass undefined value to clear an event. */
+  readonly events: Readonly<Partial<Record<EventName, readonly ActionStep[] | undefined>>>;
+}
+
+export interface SetPropBindingPayload {
+  readonly pageId: PageId;
+  readonly nodeId: NodeId;
+  readonly key: string;
+  readonly bindPath: string;
+  readonly fallback?: unknown;
+}
+
+export interface ClearPropBindingPayload {
+  readonly pageId: PageId;
+  readonly nodeId: NodeId;
+  readonly key: string;
+  /** Literal value restored when clearing the binding. */
+  readonly literalValue: unknown;
+}
+
 /**
  * The closed set of mutations the engine understands. New mutation
  * kinds are added here, not by having callers bypass Command and edit
@@ -100,7 +124,10 @@ export type Command =
   | { readonly type: "CreatePage"; readonly payload: CreatePagePayload }
   | { readonly type: "DeletePage"; readonly payload: DeletePagePayload }
   | { readonly type: "UpdatePage"; readonly payload: UpdatePagePayload }
-  | { readonly type: "ReorderPage"; readonly payload: ReorderPagePayload };
+  | { readonly type: "ReorderPage"; readonly payload: ReorderPagePayload }
+  | { readonly type: "SetNodeEvents"; readonly payload: SetNodeEventsPayload }
+  | { readonly type: "SetPropBinding"; readonly payload: SetPropBindingPayload }
+  | { readonly type: "ClearPropBinding"; readonly payload: ClearPropBindingPayload };
 
 export type CommandType = Command["type"];
 

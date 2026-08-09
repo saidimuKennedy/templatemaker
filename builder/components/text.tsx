@@ -18,7 +18,8 @@ function TextRenderer({
   readonly props: Record<string, unknown>;
   readonly children?: React.ReactNode;
 }) {
-  const text = typeof props.text === "string" ? props.text : "Text";
+  const text =
+    props.text === undefined || props.text === null ? "Text" : String(props.text);
   const style = props.style as React.CSSProperties | undefined;
   return (
     <p data-node-type="Text" data-node-id={id} style={style}>

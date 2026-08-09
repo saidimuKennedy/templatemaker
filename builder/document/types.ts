@@ -6,6 +6,8 @@
  * canvas, or AI state may exist outside of it.
  */
 
+import type { ActionStep, EventName } from "../actions/types";
+
 /** Opaque node identifier, unique within a BuilderProject. */
 export type NodeId = string;
 
@@ -16,6 +18,10 @@ export type PageId = string;
  * Arbitrary, component-defined props. Shape is validated against the
  * owning ComponentDefinition's prop schema, not by the document model
  * itself.
+ *
+ * Bindings are stored inline as `{ $bind: "scope.path", fallback? }`
+ * values inside this bag — no separate document field is required
+ * (ADR-012, Plan 29).
  */
 export type NodeProps = Record<string, unknown>;
 
@@ -50,6 +56,13 @@ export interface BuilderNode {
   readonly props: NodeProps;
   readonly styles: NodeStyles;
   readonly children: readonly BuilderNode[];
+  /**
+   * Declarative event handlers. Absent = no interactivity on this node.
+   *
+   * `Partial` is load-bearing: a node wiring only `onClick` must not be
+   * required to declare `onSubmit` and `onChange` as well.
+   */
+  readonly events?: Readonly<Partial<Record<EventName, readonly ActionStep[]>>>;
 }
 
 /** A single page: a name/route plus a root node tree. */

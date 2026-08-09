@@ -5,21 +5,29 @@
 
 import { Fragment, type ReactElement } from "react";
 import type { BuilderDocument, BuilderNode, BuilderPage } from "../document/types";
+import { resolveProps, type BindingScope } from "../bindings/resolve";
+import { containsBinding } from "../bindings/types";
 import { mergePageLinksIntoProps } from "../pages/resolve-links";
 import { shouldShowEmptyPlaceholder } from "./empty-state";
 import type { RenderContext, Renderer } from "./types";
+import { selectRenderer } from "./select-renderer";
 
 function renderNode(node: BuilderNode, context: RenderContext): ReactElement {
   const definition = context.registry.get(node.type);
   if (!definition) {
     throw new Error(`Unknown component type "${node.type}". Register it before rendering.`);
   }
-  const Component = definition.renderer;
   const children = node.children.map((child) => renderNode(child, context));
-  const props = {
-    ...mergePageLinksIntoProps(node, node.props, context.pages, context.basePath),
+  let resolvedProps = node.props;
+  if (context.enableRuntime && containsBinding(node.props)) {
+    const scope: BindingScope = context.bindingScope ?? {};
+    resolvedProps = resolveProps(resolvedProps, scope);
+  }
+  const { Component, props } = selectRenderer(node, definition, {
+    ...mergePageLinksIntoProps(node, resolvedProps, context.pages, context.basePath),
     showEmptyPlaceholder: shouldShowEmptyPlaceholder(node, context.target),
-  };
+  }, context.enableRuntime === true);
+
   return (
     <Component key={node.id} id={node.id} props={props}>
       {children}
