@@ -66,6 +66,9 @@ function LinksListRenderer({
 
 export const LinksListComponent: ComponentDefinition = {
   type: "LinksList",
+  label: "Links List",
+  description:
+    "Your set of profile links, rendered as one consistent row. Fill in only the accounts you want shown; empty ones are skipped.",
   category: "Business",
   icon: LinksListIcon,
   renderer: LinksListRenderer,
@@ -77,11 +80,41 @@ export const LinksListComponent: ComponentDefinition = {
     email: "",
   },
   propertySchema: [
-    { key: "github", label: "GitHub", type: "string", defaultValue: "" },
-    { key: "linkedin", label: "LinkedIn", type: "string", defaultValue: "" },
-    { key: "twitter", label: "Twitter", type: "string", defaultValue: "" },
-    { key: "website", label: "Website", type: "string", defaultValue: "" },
-    { key: "email", label: "Email", type: "string", defaultValue: "" },
+    {
+      key: "github",
+      label: "GitHub",
+      description: "Your GitHub profile URL or username.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn",
+      description: "Your LinkedIn profile URL or handle.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "twitter",
+      label: "Twitter",
+      description: "Your X or Twitter handle.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "website",
+      label: "Website",
+      description: "Your own site, if you have one outside this portfolio.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "email",
+      label: "Email",
+      description: "The address visitors should write to. Shown as a mail link.",
+      type: "string",
+      defaultValue: "",
+    },
   ],
   constraints: { allowedChildren: [] },
 };

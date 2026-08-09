@@ -48,6 +48,8 @@ function ProfileHeaderRenderer({
 
 export const ProfileHeaderComponent: ComponentDefinition = {
   type: "ProfileHeader",
+  label: "Profile Header",
+  description: "The introduction at the top of your portfolio: who you are, in one screen.",
   category: "Business",
   icon: ProfileHeaderIcon,
   renderer: ProfileHeaderRenderer,
@@ -58,10 +60,37 @@ export const ProfileHeaderComponent: ComponentDefinition = {
     location: "",
   },
   propertySchema: [
-    { key: "name", label: "Name", type: "string", defaultValue: "" },
-    { key: "tagline", label: "Tagline", type: "string", defaultValue: "" },
-    { key: "bio", label: "Bio", type: "string", defaultValue: "" },
-    { key: "location", label: "Location", type: "string", defaultValue: "" },
+    {
+      key: "name",
+      label: "Name",
+      description: "The name you want to be known by here.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "tagline",
+      label: "Tagline",
+      description:
+        "One line on what you do, read right after your name. Keep it shorter than a sentence.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "bio",
+      label: "Bio",
+      description:
+        "A short paragraph of context. The tagline sells the headline; the bio fills in the detail.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "location",
+      label: "Location",
+      description:
+        "Where you are based, such as Nairobi, Kenya. Leave empty if you would rather not say.",
+      type: "string",
+      defaultValue: "",
+    },
   ],
   constraints: { allowedChildren: [] },
 };

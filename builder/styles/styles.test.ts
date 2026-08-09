@@ -74,7 +74,7 @@ describe("style engine", () => {
 
     const baseRenderer = createRenderer();
     const styledRenderer = createStyledRenderer(baseRenderer, "sm");
-    const context = { registry, target: "editor-preview" as const };
+    const context = { registry, target: "editor-preview" as const, pages: [page] };
 
     const element = styledRenderer.renderPage(page, context);
     const html = renderToStaticMarkup(element);

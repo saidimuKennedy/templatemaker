@@ -24,6 +24,7 @@ export function renderEmbed(
   const output = renderer.renderDocument(document, {
     registry,
     target: "embedded-crm",
+    pages: document.pages,
   });
 
   return {

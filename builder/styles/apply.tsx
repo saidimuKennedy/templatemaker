@@ -6,6 +6,8 @@
 import { Fragment, type CSSProperties, type ReactElement } from "react";
 import type { BuilderDocument, BuilderNode, BuilderPage, NodeProps } from "../document/types";
 import type { ComponentDefinition, ComponentRenderer } from "../registry/types";
+import { mergePageLinksIntoProps } from "../pages/resolve-links";
+import { shouldShowEmptyPlaceholder } from "../renderer/empty-state";
 import type { RenderContext, Renderer } from "../renderer/types";
 import { resolveNodeStyle } from "./resolve";
 import { defaultTokens } from "./tokens";
@@ -106,7 +108,15 @@ function renderStyledNode(
   const children = node.children.map((child) =>
     renderStyledNode(child, context, breakpoint, tokens),
   );
-  const props = mergeStyleIntoProps(node, breakpoint, tokens);
+  const styledProps = mergeStyleIntoProps(node, breakpoint, tokens);
+  const props = {
+    ...mergePageLinksIntoProps(node, styledProps, context.pages, context.basePath),
+    showEmptyPlaceholder: shouldShowEmptyPlaceholder(
+      node,
+      context.target,
+      styledProps.style as CSSProperties | undefined,
+    ),
+  };
 
   return (
     <Component key={node.id} id={node.id} props={props}>

@@ -28,6 +28,7 @@ type NavigatorProps = {
   readonly onEndEdit: () => void;
   readonly onSelectPage: (pageId: PageId) => void;
   readonly onNotify: (message: { title: string; description?: string }) => void;
+  readonly isPublished?: boolean;
 };
 
 type NodeRowProps = {
@@ -312,6 +313,7 @@ export function Navigator({
   onEndEdit,
   onSelectPage,
   onNotify,
+  isPublished = false,
 }: NavigatorProps) {
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
   const [expandedForSelection, setExpandedForSelection] = useState<string | null>(null);
@@ -420,6 +422,7 @@ export function Navigator({
       <PageSwitcher
         pages={document.pages}
         currentPageId={pageId}
+        isPublished={isPublished}
         onSelectPage={onSelectPage}
         onCommand={onCommand}
         onNotify={onNotify}

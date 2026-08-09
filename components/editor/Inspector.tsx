@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { findNodeAndParent } from "@/builder/document/tree";
-import type { BuilderDocument, NodeId, PageId } from "@/builder/document/types";
+import type { BuilderDocument, BuilderPage, NodeId, PageId } from "@/builder/document/types";
 import {
   buildInspectorModel,
   createUpdatePropsCommand,
@@ -12,8 +12,10 @@ import type { InspectorField } from "@/builder/inspector/types";
 import type { Command } from "@/builder/history/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
 import type { Breakpoint } from "@/builder/styles/types";
+import { isBrokenPageLink } from "@/builder/pages/resolve-links";
 import { StyleInspector } from "@/components/editor/StyleInspector";
 import { ImageFieldControl } from "@/components/editor/ImageFieldControl";
+import { PageFieldControl } from "@/components/editor/PageFieldControl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,24 +38,49 @@ type InspectorProps = {
   readonly onCommand: (command: Command) => void;
 };
 
+/**
+ * A field's help text. Rendered from the registry's `description`, so the
+ * explanation lives next to the property definition rather than here — a new
+ * component gets its guidance for free.
+ */
+function FieldHint({ field }: { readonly field: InspectorField }) {
+  if (!field.description) {
+    return null;
+  }
+  return (
+    <p id={`${field.key}-hint`} className="text-xs leading-snug text-muted-foreground">
+      {field.description}
+    </p>
+  );
+}
+
 function FieldControl({
   field,
   error,
+  pages,
+  brokenPageLink,
   onChange,
 }: {
   readonly field: InspectorField;
   readonly error?: string;
+  readonly pages: readonly BuilderPage[];
+  readonly brokenPageLink?: boolean;
   readonly onChange: (value: unknown) => void;
 }) {
   const invalid = Boolean(error);
+  const describedBy = field.description ? `${field.key}-hint` : undefined;
 
   if (field.type === "boolean") {
     return (
-      <div className="flex items-center justify-between gap-3">
-        <Label htmlFor={field.key}>{field.label}</Label>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <Label htmlFor={field.key}>{field.label}</Label>
+          <FieldHint field={field} />
+        </div>
         <Switch
           id={field.key}
           checked={field.value === true}
+          aria-describedby={describedBy}
           onCheckedChange={(checked) => onChange(checked)}
         />
       </div>
@@ -63,12 +90,15 @@ function FieldControl({
   if (field.type === "select") {
     return (
       <div className="space-y-2">
-        <Label htmlFor={field.key}>{field.label}</Label>
+        <div className="space-y-1">
+          <Label htmlFor={field.key}>{field.label}</Label>
+          <FieldHint field={field} />
+        </div>
         <Select
           value={typeof field.value === "string" ? field.value : ""}
           onValueChange={(value) => onChange(value)}
         >
-          <SelectTrigger id={field.key} aria-invalid={invalid}>
+          <SelectTrigger id={field.key} aria-invalid={invalid} aria-describedby={describedBy}>
             <SelectValue placeholder="Select…" />
           </SelectTrigger>
           <SelectContent>
@@ -86,11 +116,15 @@ function FieldControl({
   if (field.type === "richtext") {
     return (
       <div className="space-y-2">
-        <Label htmlFor={field.key}>{field.label}</Label>
+        <div className="space-y-1">
+          <Label htmlFor={field.key}>{field.label}</Label>
+          <FieldHint field={field} />
+        </div>
         <Textarea
           id={field.key}
           value={typeof field.value === "string" ? field.value : ""}
           data-invalid={invalid}
+          aria-describedby={describedBy}
           onChange={(event) => onChange(event.target.value)}
         />
       </div>
@@ -100,12 +134,16 @@ function FieldControl({
   if (field.type === "number") {
     return (
       <div className="space-y-2">
-        <Label htmlFor={field.key}>{field.label}</Label>
+        <div className="space-y-1">
+          <Label htmlFor={field.key}>{field.label}</Label>
+          <FieldHint field={field} />
+        </div>
         <Input
           id={field.key}
           type="number"
           value={typeof field.value === "number" ? field.value : 0}
           data-invalid={invalid}
+          aria-describedby={describedBy}
           onChange={(event) => onChange(Number(event.target.value))}
         />
       </div>
@@ -117,7 +155,10 @@ function FieldControl({
     const pickerValue = /^#[0-9a-fA-F]{6}$/.test(textValue) ? textValue : "#000000";
     return (
       <div className="space-y-2">
-        <Label htmlFor={field.key}>{field.label}</Label>
+        <div className="space-y-1">
+          <Label htmlFor={field.key}>{field.label}</Label>
+          <FieldHint field={field} />
+        </div>
         <div className="flex items-center gap-2">
           <input
             id={`${field.key}-swatch`}
@@ -133,6 +174,7 @@ function FieldControl({
             value={textValue}
             placeholder="#000000, transparent, currentColor…"
             data-invalid={invalid}
+            aria-describedby={describedBy}
             className="flex-1"
             onChange={(event) => onChange(event.target.value)}
           />
@@ -147,6 +189,7 @@ function FieldControl({
       <ImageFieldControl
         fieldKey={field.key}
         label={field.label}
+        description={field.description}
         value={urlValue}
         invalid={invalid}
         onChange={onChange}
@@ -154,14 +197,34 @@ function FieldControl({
     );
   }
 
+  if (field.type === "page") {
+    const pageValue = typeof field.value === "string" ? field.value : "";
+    return (
+      <PageFieldControl
+        fieldKey={field.key}
+        label={field.label}
+        description={field.description}
+        value={pageValue}
+        pages={pages}
+        invalid={invalid}
+        broken={brokenPageLink}
+        onChange={onChange}
+      />
+    );
+  }
+
   return (
     <div className="space-y-2">
-      <Label htmlFor={field.key}>{field.label}</Label>
+      <div className="space-y-1">
+        <Label htmlFor={field.key}>{field.label}</Label>
+        <FieldHint field={field} />
+      </div>
       <Input
         id={field.key}
         type="text"
         value={typeof field.value === "string" ? field.value : ""}
         data-invalid={invalid}
+        aria-describedby={describedBy}
         onChange={(event) => onChange(event.target.value)}
       />
     </div>
@@ -225,6 +288,18 @@ export function Inspector({
 
   const model = buildInspectorModel(found.node, registry);
   const definition = registry.get(found.node.type);
+  const linkType = found.node.props.linkType === "page" ? "page" : "url";
+  const visibleFields =
+    model?.fields.filter((field) => {
+      if (field.key === "pageId") {
+        return linkType === "page";
+      }
+      if (field.key === "href") {
+        return linkType === "url";
+      }
+      return true;
+    }) ?? [];
+  const brokenPageLink = isBrokenPageLink(found.node, document.pages);
 
   const handleFieldChange = (field: InspectorField, value: unknown) => {
     const schemaField = definition?.propertySchema.find((entry) => entry.key === field.key);
@@ -248,16 +323,26 @@ export function Inspector({
 
   const contentPanel = model ? (
     <div className="space-y-4">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Component</p>
-        <p className="font-medium">{model.componentType}</p>
-      </div>
+      {model.componentDescription ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {model.componentDescription}
+        </p>
+      ) : null}
+      {visibleFields.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border p-3 text-xs leading-relaxed text-muted-foreground">
+          Nothing to fill in here — this component is shaped entirely by the{" "}
+          <span className="font-medium text-foreground">Design</span> tab and by what you drop
+          inside it.
+        </p>
+      ) : null}
       <div className="space-y-4">
-        {model.fields.map((field) => (
+        {visibleFields.map((field) => (
           <div key={field.key} className="space-y-1">
             <FieldControl
               field={field}
               error={fieldErrors[field.key]}
+              pages={document.pages}
+              brokenPageLink={field.key === "pageId" ? brokenPageLink : undefined}
               onChange={(value) => handleFieldChange(field, value)}
             />
             {fieldErrors[field.key] ? (
@@ -273,20 +358,45 @@ export function Inspector({
     </div>
   );
 
+  const Icon = definition?.icon;
+
   return (
     <div className="flex flex-col h-full min-h-0 border-l border-border bg-card">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Properties
+      {/*
+        The header names what you selected instead of repeating the panel's own
+        title: with the canvas, navigator, and inspector all on screen, "which
+        thing am I editing?" is the only question this row can usefully answer.
+      */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        {Icon ? (
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+            <Icon />
+          </span>
+        ) : null}
+        <h2 className="truncate text-sm font-medium">
+          {found.node.name ?? model?.componentLabel ?? found.node.type}
         </h2>
+        {found.node.name ? (
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {model?.componentLabel ?? found.node.type}
+          </span>
+        ) : null}
       </div>
       <Tabs defaultValue="content" className="flex flex-col flex-1 min-h-0">
-        <div className="px-3 pt-2 border-b border-border">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="content">Content</TabsTrigger>
-            <TabsTrigger value="design">Design</TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="h-auto w-full shrink-0 justify-start gap-6 rounded-none border-b border-border bg-transparent px-3 pt-1">
+          <TabsTrigger
+            value="content"
+            className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 pt-1.5 text-sm font-normal text-muted-foreground shadow-none data-[state=active]:-mb-px data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            Content
+          </TabsTrigger>
+          <TabsTrigger
+            value="design"
+            className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 pt-1.5 text-sm font-normal text-muted-foreground shadow-none data-[state=active]:-mb-px data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            Design
+          </TabsTrigger>
+        </TabsList>
         <TabsContent value="content" className="mt-0 flex-1 overflow-y-auto p-4">
           {contentPanel}
         </TabsContent>

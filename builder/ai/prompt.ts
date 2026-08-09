@@ -107,6 +107,12 @@ function formatPlaceholderImages(): string {
   ).join("\n");
 }
 
+function formatDocumentPages(document: BuilderDocument): string {
+  return document.pages
+    .map((page) => `- id: ${page.id}, name: ${page.name}, path: ${page.path}`)
+    .join("\n");
+}
+
 export function buildAIPrompt(
   registry: ComponentRegistry,
   document: BuilderDocument,
@@ -142,6 +148,13 @@ export function buildAIPrompt(
     "- Use only prop keys defined in each component's propertySchema.",
     "- Page root nodes have type Page; layout/content goes inside the page root tree.",
     "- Image has allowedChildren: [] — never nest content inside Image; use a relative Container with Image + overlay Container siblings.",
+    "",
+    "Links:",
+    "- Internal navigation must use Link or LinkBlock with linkType: \"page\" and pageId from the pages list below.",
+    "- Use href only for external URLs (https://…). Never use href for paths on this site (/… or #…).",
+    "",
+    "Pages in this document:",
+    formatDocumentPages(document),
     "",
     "Styles:",
     "- styles must be breakpoint-keyed: { base: { … }, sm?: { … }, md?: { … }, lg?: { … } }.",

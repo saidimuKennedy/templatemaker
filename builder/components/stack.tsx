@@ -2,7 +2,7 @@ import { Children } from "react";
 import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../registry/types";
 import type { NodeProps } from "../document/types";
-import { EmptyPlaceholder } from "./empty-placeholder";
+import { renderEmptyState } from "./empty-placeholder";
 
 function StackIcon() {
   return (
@@ -69,17 +69,24 @@ function StackRenderer({
         ...style,
       }}
     >
-      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Stack" />}
+      {Children.count(children) > 0 ? children : renderEmptyState(props, "Empty Stack")}
     </div>
   );
 }
 
 export const StackComponent: ComponentDefinition = {
   type: "Stack",
+  description:
+    "Lays children out in a single line, down the page or across it. Use a Stack when order matters most; use a Grid when you want even columns.",
   category: "Layout",
   icon: StackIcon,
   renderer: StackRenderer,
-  defaultProps: { direction: "column", justify: "start", align: "stretch", wrap: "wrap" },
+  defaultProps: {
+    direction: "column",
+    justify: "start",
+    align: "stretch",
+    wrap: "wrap",
+  },
   layoutPropKeys: STACK_LAYOUT_PROP_KEYS,
   resolveStyleDefaults: resolveStackStyleDefaults,
   propertySchema: [],

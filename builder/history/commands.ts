@@ -21,6 +21,7 @@ import type {
   UpdatePropsPayload,
   UpdateStylesPayload,
 } from "./types";
+import { normalizePagePath } from "../pages/normalize-path";
 
 function normalizeNodeName(name: string | undefined): string | undefined {
   if (name === undefined) return undefined;
@@ -116,14 +117,6 @@ function applyRenameNode(document: BuilderDocument, payload: RenameNodePayload):
     throw new Error(`Node "${payload.nodeId}" not found on page "${payload.pageId}".`);
   }
   return replacePage(document, payload.pageId, newRoot);
-}
-
-function normalizePagePath(path: string): string {
-  const trimmed = path.trim();
-  if (trimmed === "" || trimmed === "/") {
-    return "/";
-  }
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
 function assertUniquePagePath(document: BuilderDocument, path: string, excludePageId?: PageId): void {

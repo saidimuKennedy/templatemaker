@@ -41,6 +41,8 @@ function HeadingRenderer({
 
 export const HeadingComponent: ComponentDefinition = {
   type: "Heading",
+  description:
+    "A title that also sets the page outline for search engines and screen readers. Use a Heading for structure and Text for prose.",
   category: "Content",
   icon: HeadingIcon,
   renderer: HeadingRenderer,
@@ -49,12 +51,15 @@ export const HeadingComponent: ComponentDefinition = {
     {
       key: "text",
       label: "Text",
+      description: "The words shown in the title.",
       type: "string",
       defaultValue: "Heading",
     },
     {
       key: "level",
       label: "Level",
+      description:
+        "H1 is the page's single main title; H2 and H3 are its sub-headings. Choose by place in the outline, not by size, which you set under Design.",
       type: "select",
       options: HEADING_LEVELS.map((n) => ({ label: `H${n}`, value: n })),
       defaultValue: "2",

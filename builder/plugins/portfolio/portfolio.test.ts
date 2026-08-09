@@ -48,7 +48,7 @@ describe("portfolio business components", () => {
     registerPortfolioComponents(registry);
 
     const renderer = createRenderer();
-    const html = renderToStaticMarkup(renderer.renderPage(page, { registry, target: "editor-preview" }));
+    const html = renderToStaticMarkup(renderer.renderPage(page, { registry, target: "editor-preview", pages: [page] }));
 
     assert(html.includes('data-node-id="profile-1"'), "ProfileHeader rendered");
     assert(html.includes('data-role="tagline"'), "ProfileHeader tagline attribute");

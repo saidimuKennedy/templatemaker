@@ -43,14 +43,61 @@ function LinkRenderer({
 
 export const LinkComponent: ComponentDefinition = {
   type: "Link",
+  description:
+    "Inline text that navigates somewhere. Use a Link inside a sentence; use a Link Block to make a whole card clickable.",
   category: "Navigation",
   icon: LinkIcon,
   renderer: LinkRenderer,
-  defaultProps: { text: "Link", href: "", newTab: false },
+  defaultProps: {
+    text: "Link",
+    linkType: "url",
+    pageId: "",
+    href: "",
+    newTab: false,
+  },
   propertySchema: [
-    { key: "text", label: "Text", type: "string", defaultValue: "Link" },
-    { key: "href", label: "URL", type: "string", defaultValue: "" },
-    { key: "newTab", label: "Open in new tab", type: "boolean", defaultValue: false },
+    {
+      key: "text",
+      label: "Text",
+      description:
+        "The words a visitor clicks. Describe the destination instead of writing click here.",
+      type: "string",
+      defaultValue: "Link",
+    },
+    {
+      key: "linkType",
+      label: "Link type",
+      description:
+        "Page keeps the link working when you rename or move that page. URL points anywhere, including other sites.",
+      type: "select",
+      defaultValue: "url",
+      options: [
+        { label: "Page", value: "page" },
+        { label: "URL", value: "url" },
+      ],
+    },
+    {
+      key: "pageId",
+      label: "Page",
+      description: "Which page in this project to open.",
+      type: "page",
+      defaultValue: "",
+    },
+    {
+      key: "href",
+      label: "URL",
+      description: "The full address, including https://.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "newTab",
+      label: "Open in new tab",
+      description:
+        "Leaves your site open behind the new tab. Helpful for other people's sites, unhelpful for your own pages.",
+      type: "boolean",
+      defaultValue: false,
+    },
   ],
   constraints: { allowedChildren: [] },
 };

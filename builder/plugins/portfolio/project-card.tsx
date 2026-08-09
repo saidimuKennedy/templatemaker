@@ -74,6 +74,9 @@ function ProjectCardRenderer({
 
 export const ProjectCardComponent: ComponentDefinition = {
   type: "ProjectCard",
+  label: "Project Card",
+  description:
+    "One piece of work, summarised. Use several cards inside a Grid to build a portfolio of projects.",
   category: "Business",
   icon: ProjectCardIcon,
   renderer: ProjectCardRenderer,
@@ -85,11 +88,42 @@ export const ProjectCardComponent: ComponentDefinition = {
     featured: false,
   },
   propertySchema: [
-    { key: "title", label: "Title", type: "string", defaultValue: "" },
-    { key: "description", label: "Description", type: "string", defaultValue: "" },
-    { key: "url", label: "URL", type: "string", defaultValue: "" },
-    { key: "tags", label: "Tags", type: "string", defaultValue: "" },
-    { key: "featured", label: "Featured", type: "boolean", defaultValue: false },
+    {
+      key: "title",
+      label: "Title",
+      description: "The project's name.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "description",
+      label: "Description",
+      description: "What it does and what your part in it was, in a sentence or two.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "url",
+      label: "URL",
+      description:
+        "Where the project lives, such as a live site or repository. Leave empty if there is nothing public to open.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "tags",
+      label: "Tags",
+      description: "Comma-separated labels, like React, Design, Kenya. Each becomes its own chip.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "featured",
+      label: "Featured",
+      description: "Marks this project as a highlight so it reads as more prominent than the rest.",
+      type: "boolean",
+      defaultValue: false,
+    },
   ],
   constraints: { allowedChildren: [] },
 };

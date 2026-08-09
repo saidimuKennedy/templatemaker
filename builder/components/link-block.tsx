@@ -1,6 +1,6 @@
 import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
-import { EmptyPlaceholder } from "./empty-placeholder";
+import { renderEmptyState } from "./empty-placeholder";
 
 /**
  * A container that is itself a link — the primitive needed for things like a
@@ -47,22 +47,62 @@ function LinkBlockRenderer({
       href={href || undefined}
       target={newTab ? "_blank" : undefined}
       rel={newTab ? "noreferrer" : undefined}
-      style={{ display: "block", color: "inherit", textDecoration: "none", ...style }}
+      style={{
+        display: "block",
+        color: "inherit",
+        textDecoration: "none",
+        ...style,
+      }}
     >
-      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Link Block" />}
+      {Children.count(children) > 0 ? children : renderEmptyState(props, "Empty Link Block")}
     </a>
   );
 }
 
 export const LinkBlockComponent: ComponentDefinition = {
   type: "LinkBlock",
+  label: "Link Block",
+  description:
+    "Wraps other components so the entire area is clickable, like a card, image, or tile. Use a Link when only the words should be clickable.",
   category: "Navigation",
   icon: LinkBlockIcon,
   renderer: LinkBlockRenderer,
-  defaultProps: { href: "", newTab: false },
+  defaultProps: { linkType: "url", pageId: "", href: "", newTab: false },
   propertySchema: [
-    { key: "href", label: "URL", type: "string", defaultValue: "" },
-    { key: "newTab", label: "Open in new tab", type: "boolean", defaultValue: false },
+    {
+      key: "linkType",
+      label: "Link type",
+      description:
+        "Page keeps the link working when you rename or move that page. URL points anywhere, including other sites.",
+      type: "select",
+      defaultValue: "url",
+      options: [
+        { label: "Page", value: "page" },
+        { label: "URL", value: "url" },
+      ],
+    },
+    {
+      key: "pageId",
+      label: "Page",
+      description: "Which page in this project to open.",
+      type: "page",
+      defaultValue: "",
+    },
+    {
+      key: "href",
+      label: "URL",
+      description: "The full address, including https://.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "newTab",
+      label: "Open in new tab",
+      description:
+        "Leaves your site open behind the new tab. Helpful for other people's sites, unhelpful for your own pages.",
+      type: "boolean",
+      defaultValue: false,
+    },
   ],
   constraints: {},
 };

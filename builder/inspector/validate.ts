@@ -36,5 +36,11 @@ export function validateFieldValue(
       }
       return undefined;
     }
+
+    case "page":
+      if (typeof value !== "string") {
+        return `"${field.label}" must be a string.`;
+      }
+      return undefined;
   }
 }

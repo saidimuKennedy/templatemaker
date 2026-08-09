@@ -2,7 +2,7 @@ import { Children } from "react";
 import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../registry/types";
 import type { NodeProps } from "../document/types";
-import { EmptyPlaceholder } from "./empty-placeholder";
+import { renderEmptyState } from "./empty-placeholder";
 
 const GAP_MAP: Record<string, string> = {
   sm: "8px",
@@ -104,13 +104,15 @@ function GridRenderer({
         ...style,
       }}
     >
-      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Grid" />}
+      {Children.count(children) > 0 ? children : renderEmptyState(props, "Empty Grid")}
     </div>
   );
 }
 
 export const GridComponent: ComponentDefinition = {
   type: "Grid",
+  description:
+    "Arranges children into even columns that wrap on narrow screens. Use a Grid for card rows and galleries; use a Stack for a simple one-direction list.",
   category: "Layout",
   icon: GridIcon,
   renderer: GridRenderer,

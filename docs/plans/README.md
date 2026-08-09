@@ -219,6 +219,19 @@ eleven visual acceptance checks also remain unconfirmed.
 | 24 | [Surface Engine Capabilities](./24-surface-engine-capabilities.md) | `components/editor/*`, `builder/history/{session,types,commands}.ts` | 23 (Stage 1 verification) | **Staged — stop for review after each stage** |
 | 25 | [AI Visual Fidelity](./25-ai-visual-fidelity.md) | `builder/ai/{prompt,schema,translate}.ts`, `builder/components/{icon,image}.tsx`, `builder/assets/*`, `prisma/schema.prisma` | 19 | **Staged — stop for review after each stage.** Stage 1 is blocking; Stage 5 adds asset storage and reverses Plan 24's no-blob-storage deferral |
 | 26 | [Design Coherence](./26-design-coherence.md) | `builder/ai/style-digest.ts`, `components/editor/{Inspector,StyleInspector}.tsx`, `builder/document/*` (Stage 4) | 25 | **Staged.** Stage 1 landed; Stages 3 and 4 each need an ADR before implementation |
+| 27 | [Page Settings and Links](./27-page-settings-and-links.md) | `builder/components/{link,link-block}.tsx`, `builder/renderer/*`, `components/editor/PageSwitcher.tsx`, `builder/ai/prompt.ts` | 24 (page commands) | **Staged.** Stage 1 (page references) must land before Stage 2 (slug editing) |
+
+Plan 27 makes pages configurable and connected. The page command set
+(`UpdatePage`, `CreatePage`, `DeletePage`, `ReorderPage`) already exists
+and `suggestPath` already slugifies — it just only runs at create time
+against the auto name, which is why live documents carry paths like
+`/page-3-2` for a page named "contact us". The plan's load-bearing
+constraint is its **stage order**: links must reference a page id before
+slug editing ships, because `resolvePageFromPath` falls back to the index
+page, so a link holding a stale path renders the *wrong page* rather than
+a 404 — breakage with no visible symptom. Page references resolve in the
+render walker (the same mechanism styles already use), not in the
+component, so the frozen `ComponentRenderer` contract stands.
 
 Plan 23 fixes a bug the Plan 17 sign-off found by measuring computed
 styles in a browser: published pages emit base styles inline and sm/md/lg

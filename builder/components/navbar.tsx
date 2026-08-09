@@ -2,7 +2,7 @@ import { Children } from "react";
 import type { CSSProperties } from "react";
 import type { ComponentDefinition } from "../registry/types";
 import type { NodeProps } from "../document/types";
-import { EmptyPlaceholder } from "./empty-placeholder";
+import { renderEmptyState } from "./empty-placeholder";
 
 function NavbarIcon() {
   return (
@@ -45,13 +45,15 @@ function NavbarRenderer({
         ...style,
       }}
     >
-      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Navbar" />}
+      {Children.count(children) > 0 ? children : renderEmptyState(props, "Empty Navbar")}
     </nav>
   );
 }
 
 export const NavbarComponent: ComponentDefinition = {
   type: "Navbar",
+  description:
+    "The navigation bar at the top of the page. Put Links inside it so visitors can reach your other pages.",
   category: "Navigation",
   icon: NavbarIcon,
   renderer: NavbarRenderer,

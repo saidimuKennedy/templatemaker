@@ -108,6 +108,29 @@ describe("translateOperations", () => {
     expect(String(base?.gridTemplateColumns)).toContain("auto-fit");
   });
 
+  it("rejects page link targets that do not exist", () => {
+    const registry = createPortfolioRegistry();
+    const document = createDefaultDocument("executive", "translate-page-link");
+    const page = document.pages[0]!;
+
+    expect(() =>
+      translateOperations(
+        [
+          {
+            op: "create",
+            id: "nav-link",
+            pageId: page.id,
+            parentId: page.root.id,
+            componentType: "Link",
+            props: { text: "About", linkType: "page", pageId: "missing-page" },
+          },
+        ],
+        document,
+        registry,
+      ),
+    ).toThrow('Page "missing-page" does not exist');
+  });
+
   it("rejects unknown component types", () => {
     const registry = createPortfolioRegistry();
     const document = createDefaultDocument("executive", "translate-unknown");

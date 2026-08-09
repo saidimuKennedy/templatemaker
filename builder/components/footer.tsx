@@ -1,6 +1,6 @@
 import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
-import { EmptyPlaceholder } from "./empty-placeholder";
+import { renderEmptyState } from "./empty-placeholder";
 
 function FooterIcon() {
   return (
@@ -24,13 +24,15 @@ function FooterRenderer({
 
   return (
     <footer data-node-type="Footer" data-node-id={id} style={style}>
-      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Footer" />}
+      {Children.count(children) > 0 ? children : renderEmptyState(props, "Empty Footer")}
     </footer>
   );
 }
 
 export const FooterComponent: ComponentDefinition = {
   type: "Footer",
+  description:
+    "The closing band of the page, for contact details, small print, and secondary links.",
   category: "Navigation",
   icon: FooterIcon,
   renderer: FooterRenderer,

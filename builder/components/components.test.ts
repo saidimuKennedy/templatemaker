@@ -33,7 +33,7 @@ describe("built-in layout primitives", () => {
     ]);
     const navbarPage: BuilderPage = { id: "page-navbar", name: "Navbar", path: "/", root: navbar };
     const navbarHtml = renderToStaticMarkup(
-      renderer.renderPage(navbarPage, { registry, target: "editor-preview" }),
+      renderer.renderPage(navbarPage, { registry, target: "editor-preview", pages: [navbarPage] }),
     );
     assert(navbarHtml.includes('data-node-type="Navbar"'), "Navbar rendered");
     assert(
@@ -50,7 +50,7 @@ describe("built-in layout primitives", () => {
     ]);
     const gridPage: BuilderPage = { id: "page-grid", name: "Grid", path: "/", root: grid };
     const gridHtml = renderToStaticMarkup(
-      renderer.renderPage(gridPage, { registry, target: "editor-preview" }),
+      renderer.renderPage(gridPage, { registry, target: "editor-preview", pages: [gridPage] }),
     );
     assert(
       gridHtml.includes("auto-fit"),
@@ -70,7 +70,7 @@ describe("built-in layout primitives", () => {
     });
     const stackPage: BuilderPage = { id: "page-stack", name: "Stack", path: "/", root: styledStack };
     const stackHtml = renderToStaticMarkup(
-      renderer.renderPage(stackPage, { registry, target: "editor-preview" }),
+      renderer.renderPage(stackPage, { registry, target: "editor-preview", pages: [stackPage] }),
     );
     assert(
       stackHtml.includes("justify-content:space-between") || stackHtml.includes("justify-content: space-between"),
@@ -96,6 +96,7 @@ describe("built-in layout primitives", () => {
       createStyledRenderer(renderer, "base").renderPage(seedPage, {
         registry: portfolioRegistry,
         target: "editor-preview",
+        pages: seedDocument.pages,
       }),
     );
     assert(
@@ -106,5 +107,36 @@ describe("built-in layout primitives", () => {
       seedHtml.includes("align-items:stretch") || seedHtml.includes("align-items: stretch"),
       "pre-existing seed Stack (no align prop) falls back to stretch, matching prior unset behavior",
     );
+  });
+});
+
+/**
+ * The Inspector reads its help text straight off the registry, so an
+ * undescribed component or property silently degrades the panel back to bare
+ * labels. Assert the coverage here rather than trusting review to catch it.
+ */
+describe("component explanations", () => {
+  const registry = createPortfolioRegistry();
+
+  it("every component explains what it is for", () => {
+    for (const definition of registry.list()) {
+      assert(
+        (definition.description ?? "").trim().length > 0,
+        `${definition.type} needs a description for the Inspector header`,
+      );
+    }
+  });
+
+  it("every editable property explains itself without restating its label", () => {
+    for (const definition of registry.list()) {
+      for (const field of definition.propertySchema) {
+        const description = (field.description ?? "").trim();
+        assert(description.length > 0, `${definition.type}.${field.key} needs a description`);
+        assert(
+          description.toLowerCase() !== field.label.toLowerCase(),
+          `${definition.type}.${field.key} description just repeats its label`,
+        );
+      }
+    }
   });
 });

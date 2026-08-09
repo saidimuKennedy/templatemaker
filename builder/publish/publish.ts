@@ -23,6 +23,7 @@ export function publish(
   const output = renderer.renderDocument(document, {
     registry,
     target: "published-webview",
+    pages: document.pages,
   });
 
   return {

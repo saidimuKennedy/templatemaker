@@ -49,6 +49,17 @@ describe("buildAIPrompt", () => {
     expect(system).toContain("Placeholder images");
   });
 
+  it("includes document pages for internal link guidance", () => {
+    const registry = createComponentRegistry();
+    registerBuiltInComponents(registry);
+    const document = createDefaultDocument("executive", "prompt-pages-test");
+    const { system } = buildAIPrompt(registry, document, "Add nav links");
+
+    expect(system).toContain("Pages in this document:");
+    expect(system).toContain(document.pages[0]!.id);
+    expect(system).toContain('linkType: "page"');
+  });
+
   it("includes the user prompt and serialized document", () => {
     const registry = createComponentRegistry();
     registerBuiltInComponents(registry);

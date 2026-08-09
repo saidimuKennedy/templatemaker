@@ -80,7 +80,7 @@ const page: BuilderPage = { id: "page-1", name: "Home", path: "/", root };
 const registry = createPortfolioRegistry();
 const renderer = createStyledRenderer(createRenderer(), "base");
 const bodyHtml = renderToStaticMarkup(
-  renderer.renderPage(page, { registry, target: "published-webview" }),
+  renderer.renderPage(page, { registry, target: "published-webview", pages: [page] }),
 );
 
 const fullHtml = `<!doctype html>

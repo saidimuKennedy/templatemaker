@@ -73,13 +73,9 @@ export function getProfileHeaderBio(document: BuilderDocument): string {
   return typeof node.props.bio === "string" ? node.props.bio : "";
 }
 
-export function normalizePagePath(path: string): string {
-  const trimmed = path.trim();
-  if (trimmed === "" || trimmed === "/") {
-    return "/";
-  }
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-}
+import { normalizePagePath } from "@/builder/pages/normalize-path";
+
+export { normalizePagePath };
 
 /** Resolves a page from URL path segments. Root (`/`) falls back to the index page. */
 export function resolvePageByPath(
@@ -111,9 +107,15 @@ function renderResponsivePage(
   registry: ComponentRegistry,
   target: RenderTarget,
   page: BuilderPage,
+  basePath?: string,
 ): ReactElement {
   const renderer = createStyledRenderer(createRenderer(), "base");
-  const tree = renderer.renderPage(page, { registry, target });
+  const tree = renderer.renderPage(page, {
+    registry,
+    target,
+    pages: document.pages,
+    basePath,
+  });
   const stylesheet = buildResponsiveStylesheet(document);
 
   return (
@@ -129,20 +131,35 @@ function renderResponsive(
   registry: ComponentRegistry,
   target: RenderTarget,
   pathSegments?: readonly string[],
+  basePath?: string,
 ): ReactElement {
   const page = resolvePageByPath(document, pathSegments);
   if (!page) {
     throw new Error("Page not found.");
   }
-  return renderResponsivePage(document, registry, target, page);
+  return renderResponsivePage(document, registry, target, page, basePath);
 }
 
+/**
+ * `slug` is what mounts the document at `/p/<slug>`. Without it, page links
+ * resolve to bare document paths (`/work`) and navigate off the portfolio to
+ * a route that does not exist. Optional only so existing callers that render
+ * a single page for preview keep compiling; pass it for anything a visitor
+ * will click.
+ */
 export function renderPublished(
   document: BuilderDocument,
   registry: ComponentRegistry,
   pathSegments?: readonly string[],
+  slug?: string,
 ): ReactElement {
-  return renderResponsive(document, registry, "published-webview", pathSegments);
+  return renderResponsive(
+    document,
+    registry,
+    "published-webview",
+    pathSegments,
+    slug ? `/p/${slug}` : undefined,
+  );
 }
 
 /**
@@ -157,8 +174,15 @@ export function renderEmbedded(
   document: BuilderDocument,
   registry: ComponentRegistry,
   pathSegments?: readonly string[],
+  slug?: string,
 ): ReactElement {
-  return renderResponsive(document, registry, "embedded-crm", pathSegments);
+  return renderResponsive(
+    document,
+    registry,
+    "embedded-crm",
+    pathSegments,
+    slug ? `/embed/${slug}` : undefined,
+  );
 }
 
 export function findNodeParentId(

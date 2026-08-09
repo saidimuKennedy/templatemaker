@@ -12,5 +12,6 @@ export function renderPreview(
   return renderer.renderDocument(document, {
     registry,
     target: "editor-preview",
+    pages: document.pages,
   });
 }

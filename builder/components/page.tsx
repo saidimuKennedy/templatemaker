@@ -1,6 +1,6 @@
 import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
-import { EmptyPlaceholder } from "./empty-placeholder";
+import { renderEmptyState } from "./empty-placeholder";
 
 function PageIcon() {
   return (
@@ -22,13 +22,15 @@ function PageRenderer({
   const style = props.style as React.CSSProperties | undefined;
   return (
     <div data-node-type="Page" data-node-id={id} style={style}>
-      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Page" />}
+      {Children.count(children) > 0 ? children : renderEmptyState(props, "Empty Page")}
     </div>
   );
 }
 
 export const PageComponent: ComponentDefinition = {
   type: "Page",
+  description:
+    "The whole page. Everything on the canvas lives inside it, so page-wide background and text defaults belong here.",
   category: "Layout",
   icon: PageIcon,
   renderer: PageRenderer,

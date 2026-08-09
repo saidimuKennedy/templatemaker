@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { SpacingBoxEditor } from "@/components/editor/SpacingBoxEditor";
 
 const CUSTOM_VALUE = "__custom__";
 
@@ -297,23 +298,33 @@ function StyleGroupSection({
       </button>
       {isOpen ? (
         <div className="mt-2.5 space-y-3">
-          {group.fields.map((field) => {
-            const authored = declaration[field.key];
-            const effective =
-              authored === undefined
-                ? resolveEffectiveStyleField(node, breakpoint, field.key, registry)
-                : undefined;
-            return (
-              <StyleFieldControl
-                key={field.key}
-                field={field}
-                value={authored}
-                effective={effective}
-                breakpoint={breakpoint}
-                onChange={(val) => onFieldChange(field, val)}
-              />
-            );
-          })}
+          {group.id === "spacing" ? (
+            <SpacingBoxEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onSideChange={onFieldChange}
+            />
+          ) : (
+            group.fields.map((field) => {
+              const authored = declaration[field.key];
+              const effective =
+                authored === undefined
+                  ? resolveEffectiveStyleField(node, breakpoint, field.key, registry)
+                  : undefined;
+              return (
+                <StyleFieldControl
+                  key={field.key}
+                  field={field}
+                  value={authored}
+                  effective={effective}
+                  breakpoint={breakpoint}
+                  onChange={(val) => onFieldChange(field, val)}
+                />
+              );
+            })
+          )}
         </div>
       ) : null}
     </div>
@@ -338,7 +349,13 @@ export function StyleInspector({
   const declaration = getDeclarationForBreakpoint(node, breakpoint);
 
   const handleFieldChange = (field: StyleField, value: string) => {
-    const nextDeclaration = expandSpacingShorthand({ ...declaration, [field.key]: value });
+    const next = { ...declaration };
+    if (value.trim() === "") {
+      delete next[field.key];
+    } else {
+      next[field.key] = value;
+    }
+    const nextDeclaration = expandSpacingShorthand(next);
     onCommand(createUpdateStylesCommand(pageId, node, breakpoint, nextDeclaration));
   };
 

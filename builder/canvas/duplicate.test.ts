@@ -140,7 +140,7 @@ describe("node duplication", () => {
 
     function renderNode(node: BuilderNode): string {
       const p: BuilderPage = { id: "p", name: "p", path: "/", root: node };
-      return renderToStaticMarkup(renderer.renderPage(p, { registry, target: "editor-preview" }));
+      return renderToStaticMarkup(renderer.renderPage(p, { registry, target: "editor-preview", pages: [p] }));
     }
 
     const emptyProfile = renderNode({ id: "ph-1", type: "ProfileHeader", props: {}, styles: {}, children: [] });

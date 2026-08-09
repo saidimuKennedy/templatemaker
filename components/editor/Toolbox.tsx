@@ -50,7 +50,9 @@ export function Toolbox({ registry, onAdd, variant = "default" }: ToolboxProps) 
                     <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
                       <Icon />
                     </span>
-                    <span className="text-xs font-medium">{component.type}</span>
+                    <span className="text-xs font-medium">
+                      {component.label ?? component.type}
+                    </span>
                   </Button>
                 );
               })}

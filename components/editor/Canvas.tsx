@@ -92,6 +92,7 @@ export function Canvas({
     return styledRenderer.renderPage(page, {
       registry,
       target: "editor-preview",
+      pages: document.pages,
     });
   }, [document, documentVersion, pageId, registry, styledRenderer]);
 

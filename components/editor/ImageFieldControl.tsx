@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type ImageFieldControlProps = {
   readonly fieldKey: string;
   readonly label: string;
+  readonly description?: string;
   readonly value: string;
   readonly invalid: boolean;
   readonly onChange: (value: string) => void;
@@ -26,6 +27,7 @@ type ImageFieldControlProps = {
 export function ImageFieldControl({
   fieldKey,
   label,
+  description,
   value,
   invalid,
   onChange,
@@ -91,7 +93,12 @@ export function ImageFieldControl({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={fieldKey}>{label}</Label>
+      <div className="space-y-1">
+        <Label htmlFor={fieldKey}>{label}</Label>
+        {description ? (
+          <p className="text-xs leading-snug text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
       {value ? (
         <div className="overflow-hidden rounded-md border border-border bg-muted/30">
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -552,6 +552,7 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
       onEndEdit={() => setEditingNodeId(null)}
       onSelectPage={handleSelectPage}
       onNotify={({ title, description }) => toast({ title, description })}
+      isPublished={status === "published"}
     />
   );
 

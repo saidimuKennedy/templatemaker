@@ -21,12 +21,20 @@ export type ComponentCategory =
 export interface PropertyField {
   readonly key: string;
   readonly label: string;
+  /**
+   * One-line plain-language help shown under the field's label in the
+   * Inspector. Say what the field does and, where two values are easy to
+   * confuse, contrast them ("Cover crops to fill; Contain fits whole").
+   * Never restate the label.
+   */
+  readonly description?: string;
   readonly type:
     | "string"
     | "number"
     | "boolean"
     | "color"
     | "image"
+    | "page"
     | "select"
     | "richtext";
   /** Required for type: "select". */
@@ -75,6 +83,10 @@ export type ComponentRenderer = ComponentType<{
 export interface ComponentDefinition {
   /** Unique component type name, referenced by BuilderNode.type. */
   readonly type: string;
+  /** Human name for the Inspector header and toolbox. Defaults to `type`. */
+  readonly label?: string;
+  /** One or two sentences on what this component is for, shown in the Inspector. */
+  readonly description?: string;
   readonly category: ComponentCategory;
   readonly icon: ComponentType;
   readonly renderer: ComponentRenderer;

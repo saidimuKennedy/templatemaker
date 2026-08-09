@@ -32,7 +32,7 @@ describe("Icon component", () => {
     };
 
     const html = renderToStaticMarkup(
-      renderer.renderPage(page, { registry, target: "editor-preview" }),
+      renderer.renderPage(page, { registry, target: "editor-preview", pages: [page] }),
     );
     expect(html).toContain('data-node-type="Icon"');
     expect(html).toContain('data-node-id="icon-1"');
@@ -49,7 +49,7 @@ describe("Icon component", () => {
     };
 
     const html = renderToStaticMarkup(
-      renderer.renderPage(page, { registry, target: "published-webview" }),
+      renderer.renderPage(page, { registry, target: "published-webview", pages: [page] }),
     );
     expect(html).toContain('data-node-type="Icon"');
     expect(html).toContain("<svg");
@@ -79,7 +79,7 @@ describe("Icon component", () => {
     };
 
     const html = renderToStaticMarkup(
-      renderer.renderPage(page, { registry, target: "published-webview" }),
+      renderer.renderPage(page, { registry, target: "published-webview", pages: [page] }),
     );
     // An icon beside a heading carries no meaning of its own; exposing it
     // as an unlabeled graphic is worse than hiding it.
@@ -96,7 +96,7 @@ describe("Icon component", () => {
     };
 
     const html = renderToStaticMarkup(
-      renderer.renderPage(page, { registry, target: "published-webview" }),
+      renderer.renderPage(page, { registry, target: "published-webview", pages: [page] }),
     );
     // role="img" + aria-label on the wrapper, with the inner svg hidden, is
     // the standard pattern: the name comes from the label, not the graphic.
@@ -155,7 +155,7 @@ describe("Image overlay and cropping", () => {
     };
 
     const html = renderToStaticMarkup(
-      renderer.renderPage(page, { registry, target: "published-webview" }),
+      renderer.renderPage(page, { registry, target: "published-webview", pages: [page] }),
     );
     expect(html).toContain('data-node-type="Image"');
     expect(html).toContain('data-node-type="Container"');
@@ -176,7 +176,7 @@ describe("Image overlay and cropping", () => {
     };
 
     const html = renderToStaticMarkup(
-      renderer.renderPage(page, { registry, target: "published-webview" }),
+      renderer.renderPage(page, { registry, target: "published-webview", pages: [page] }),
     );
     expect(html).toMatch(/aspect-ratio:3\/4|aspect-ratio: 3 \/ 4/);
     expect(html).toMatch(/object-fit:cover|object-fit: cover/);

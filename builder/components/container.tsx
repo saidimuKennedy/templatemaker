@@ -1,6 +1,6 @@
 import { Children } from "react";
 import type { ComponentDefinition } from "../registry/types";
-import { EmptyPlaceholder } from "./empty-placeholder";
+import { renderEmptyState } from "./empty-placeholder";
 
 function ContainerIcon() {
   return (
@@ -22,13 +22,15 @@ function ContainerRenderer({
   const style = props.style as React.CSSProperties | undefined;
   return (
     <div data-node-type="Container" data-node-id={id} style={style}>
-      {Children.count(children) > 0 ? children : <EmptyPlaceholder label="Empty Container" />}
+      {Children.count(children) > 0 ? children : renderEmptyState(props, "Empty Container")}
     </div>
   );
 }
 
 export const ContainerComponent: ComponentDefinition = {
   type: "Container",
+  description:
+    "Centres its children and caps how wide they get. Unlike a Section it does not span the screen; it holds the readable column inside one.",
   category: "Layout",
   icon: ContainerIcon,
   renderer: ContainerRenderer,

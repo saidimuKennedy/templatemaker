@@ -37,6 +37,8 @@ function ButtonRenderer({
 
 export const ButtonComponent: ComponentDefinition = {
   type: "Button",
+  description:
+    "A call to action, for the one thing you want a visitor to do. Use a Button for actions and a Link for ordinary navigation.",
   category: "Interaction",
   icon: ButtonIcon,
   renderer: ButtonRenderer,
@@ -45,12 +47,16 @@ export const ButtonComponent: ComponentDefinition = {
     {
       key: "label",
       label: "Label",
+      description:
+        "The words on the button. Name the action, like Get in touch, rather than Submit.",
       type: "string",
       defaultValue: "Button",
     },
     {
       key: "href",
       label: "Link URL",
+      description:
+        "Where the button goes when clicked. Leave empty while the destination does not exist yet.",
       type: "string",
       defaultValue: "",
     },

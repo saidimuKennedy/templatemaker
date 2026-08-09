@@ -5,6 +5,8 @@
 
 import { Fragment, type ReactElement } from "react";
 import type { BuilderDocument, BuilderNode, BuilderPage } from "../document/types";
+import { mergePageLinksIntoProps } from "../pages/resolve-links";
+import { shouldShowEmptyPlaceholder } from "./empty-state";
 import type { RenderContext, Renderer } from "./types";
 
 function renderNode(node: BuilderNode, context: RenderContext): ReactElement {
@@ -14,8 +16,12 @@ function renderNode(node: BuilderNode, context: RenderContext): ReactElement {
   }
   const Component = definition.renderer;
   const children = node.children.map((child) => renderNode(child, context));
+  const props = {
+    ...mergePageLinksIntoProps(node, node.props, context.pages, context.basePath),
+    showEmptyPlaceholder: shouldShowEmptyPlaceholder(node, context.target),
+  };
   return (
-    <Component key={node.id} id={node.id} props={node.props}>
+    <Component key={node.id} id={node.id} props={props}>
       {children}
     </Component>
   );

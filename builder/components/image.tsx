@@ -80,6 +80,8 @@ function ImageRenderer({
 
 export const ImageComponent: ComponentDefinition = {
   type: "Image",
+  description:
+    "A picture. Give it alt text so it still makes sense to screen readers and search engines.",
   category: "Content",
   icon: ImageIcon,
   renderer: ImageRenderer,
@@ -88,18 +90,23 @@ export const ImageComponent: ComponentDefinition = {
     {
       key: "src",
       label: "Source",
+      description: "The picture to show. Upload a file or paste an image URL.",
       type: "image",
       defaultValue: "",
     },
     {
       key: "alt",
       label: "Alt text",
+      description:
+        "One line describing the picture for screen readers and search engines. Leave empty only when the image is purely decorative.",
       type: "string",
       defaultValue: "",
     },
     {
       key: "objectFit",
       label: "Object fit",
+      description:
+        "How the picture fills its frame. Cover crops the edges to fill it; Contain fits the whole picture and leaves space around it.",
       type: "select",
       options: OBJECT_FIT_OPTIONS.map((option) => ({ label: option.label, value: option.value })),
       defaultValue: "cover",
@@ -107,6 +114,8 @@ export const ImageComponent: ComponentDefinition = {
     {
       key: "aspectRatio",
       label: "Aspect ratio",
+      description:
+        "Locks the frame's shape, such as 16/9 or 1/1, so the layout does not shift while the picture loads. Leave empty to use the picture's own shape.",
       type: "string",
       defaultValue: "",
     },

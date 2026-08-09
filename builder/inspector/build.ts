@@ -26,12 +26,17 @@ export function buildInspectorModel(
     label: field.label,
     type: field.type,
     value: resolveFieldValue(node, field),
+    ...(field.description !== undefined ? { description: field.description } : {}),
     ...(field.options !== undefined ? { options: field.options } : {}),
   }));
 
   return {
     nodeId: node.id,
     componentType: node.type,
+    componentLabel: definition.label ?? node.type,
+    ...(definition.description !== undefined
+      ? { componentDescription: definition.description }
+      : {}),
     fields,
   };
 }

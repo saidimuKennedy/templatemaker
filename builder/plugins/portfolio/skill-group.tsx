@@ -61,6 +61,9 @@ function SkillGroupRenderer({
 
 export const SkillGroupComponent: ComponentDefinition = {
   type: "SkillGroup",
+  label: "Skill Group",
+  description:
+    "A named cluster of skills, such as Languages or Tools. Use one group per heading rather than one long list.",
   category: "Business",
   icon: SkillGroupIcon,
   renderer: SkillGroupRenderer,
@@ -69,8 +72,21 @@ export const SkillGroupComponent: ComponentDefinition = {
     items: "",
   },
   propertySchema: [
-    { key: "category", label: "Category", type: "string", defaultValue: "" },
-    { key: "items", label: "Items", type: "string", defaultValue: "" },
+    {
+      key: "category",
+      label: "Category",
+      description: "The group's heading, such as Languages, Frameworks, or Tools.",
+      type: "string",
+      defaultValue: "",
+    },
+    {
+      key: "items",
+      label: "Items",
+      description:
+        "Comma-separated skills, like TypeScript, Python, SQL. Each becomes its own chip.",
+      type: "string",
+      defaultValue: "",
+    },
   ],
   constraints: { allowedChildren: [] },
 };

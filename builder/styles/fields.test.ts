@@ -25,7 +25,7 @@ describe("built-in components apply props.style", () => {
     };
 
     const page: BuilderPage = { id: "page-1", name: "Home", path: "/", root: heading };
-    const html = renderToStaticMarkup(styledRenderer.renderPage(page, { registry, target: "editor-preview" }));
+    const html = renderToStaticMarkup(styledRenderer.renderPage(page, { registry, target: "editor-preview", pages: [page] }));
 
     assert(html.includes("font-size:48px"), "Heading resolves fontSize from node.styles into props.style");
     assert(html.includes("color:#2563eb"), "Heading resolves color from node.styles into props.style");
@@ -42,7 +42,7 @@ describe("built-in components apply props.style", () => {
     const sectionHtml = renderToStaticMarkup(
       styledRenderer.renderPage(
         { id: "page-2", name: "Section", path: "/", root: section },
-        { registry, target: "editor-preview" },
+        { registry, target: "editor-preview", pages: [{ id: "page-2", name: "Section", path: "/", root: section }] },
       ),
     );
     assert(sectionHtml.includes("background-color:#f1f5f9"), "Section resolves background from node.styles");

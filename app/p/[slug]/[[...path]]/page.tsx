@@ -84,7 +84,7 @@ export default async function PublicPortfolioPage({ params }: PublicPortfolioPag
         which overflowed the page horizontally.
       */}
       <div className="mx-auto w-full max-w-[1200px]">
-        {renderPublished(document, registry, path)}
+        {renderPublished(document, registry, path, slug)}
       </div>
     </div>
   );

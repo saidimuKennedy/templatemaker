@@ -42,5 +42,5 @@ export default async function EmbedPortfolioPage({ params }: EmbedPageProps) {
     notFound();
   }
 
-  return renderEmbedded(document, registry, path);
+  return renderEmbedded(document, registry, path, slug);
 }

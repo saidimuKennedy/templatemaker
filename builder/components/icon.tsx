@@ -59,6 +59,8 @@ function IconRenderer({
 
 export const IconComponent: ComponentDefinition = {
   type: "Icon",
+  description:
+    "A small pictogram from the built-in set. It carries no meaning on its own, so pair it with nearby text or give it an accessible label.",
   category: "Content",
   icon: IconToolboxGlyph,
   renderer: IconRenderer,
@@ -68,6 +70,7 @@ export const IconComponent: ComponentDefinition = {
     {
       key: "name",
       label: "Icon",
+      description: "Which pictogram to show.",
       type: "select",
       options: ICON_NAMES.map((name) => ({ label: name, value: name })),
       defaultValue: "star",
@@ -75,6 +78,8 @@ export const IconComponent: ComponentDefinition = {
     {
       key: "label",
       label: "Accessible label",
+      description:
+        "What the icon means, for screen readers. Leave empty when nearby text already says it, so it is not announced twice.",
       type: "string",
       defaultValue: "",
     },

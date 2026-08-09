@@ -29,6 +29,8 @@ function TextRenderer({
 
 export const TextComponent: ComponentDefinition = {
   type: "Text",
+  description:
+    "A paragraph of body copy. For titles use a Heading instead, so the page keeps a readable outline.",
   category: "Content",
   icon: TextIcon,
   renderer: TextRenderer,
@@ -37,6 +39,7 @@ export const TextComponent: ComponentDefinition = {
     {
       key: "text",
       label: "Text",
+      description: "The words shown on the page.",
       type: "string",
       defaultValue: "Text",
     },
