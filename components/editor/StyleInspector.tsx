@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { SpacingBoxEditor } from "@/components/editor/SpacingBoxEditor";
+import { SizePanelEditor } from "@/components/editor/SizePanelEditor";
 
 const CUSTOM_VALUE = "__custom__";
 
@@ -305,6 +306,14 @@ function StyleGroupSection({
               registry={registry}
               declaration={declaration}
               onSideChange={onFieldChange}
+            />
+          ) : group.id === "size" ? (
+            <SizePanelEditor
+              node={node}
+              breakpoint={breakpoint}
+              registry={registry}
+              declaration={declaration}
+              onFieldChange={onFieldChange}
             />
           ) : (
             group.fields.map((field) => {

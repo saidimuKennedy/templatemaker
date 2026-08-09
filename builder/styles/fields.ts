@@ -105,6 +105,8 @@ const OVERFLOW_OPTIONS = [
   { label: "Auto", value: "auto" },
 ] as const;
 
+export { OVERFLOW_OPTIONS };
+
 const BORDER_STYLE_OPTIONS = [
   { label: "None", value: "none" },
   { label: "Solid", value: "solid" },
