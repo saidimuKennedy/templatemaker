@@ -60,4 +60,23 @@ describe("pageNeedsRuntime", () => {
     };
     expect(pageNeedsRuntime({ ...page, root }, registry)).toBe(true);
   });
+
+  it("returns true when the page contains a Form node", () => {
+    const document = createDefaultDocument("minimal", "proj-form");
+    const page = document.pages[0]!;
+    const root = {
+      ...page.root,
+      children: [
+        ...page.root.children,
+        {
+          id: "form-1",
+          type: "Form",
+          props: { resource: "messages" },
+          styles: {},
+          children: [],
+        },
+      ],
+    };
+    expect(pageNeedsRuntime({ ...page, root }, registry)).toBe(true);
+  });
 });

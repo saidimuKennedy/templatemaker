@@ -87,6 +87,7 @@ export function Canvas({
       registry,
       target: "editor-preview",
       pages: document.pages,
+      resources: document.resources,
     });
   }, [document, documentVersion, pageId, registry, styledRenderer]);
 

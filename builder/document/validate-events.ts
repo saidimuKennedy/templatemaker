@@ -112,8 +112,8 @@ function validateActionStep(
       }
       break;
     }
-    case "openModal":
-    case "closeModal": {
+    case "closeModal":
+    case "openModal": {
       const nodeId = (step as ActionStep & { type: "openModal" | "closeModal" }).nodeId;
       if (typeof nodeId !== "string" || nodeId.trim() === "") {
         errors.push({ path: `${path}.nodeId`, message: `${type} step requires a node id.` });
@@ -122,6 +122,31 @@ function validateActionStep(
           path: `${path}.nodeId`,
           message: `${type} step references unknown node id "${nodeId}".`,
         });
+      }
+      break;
+    }
+    case "submitForm": {
+      const { resource, onSuccess, onError } = step as ActionStep & { type: "submitForm" };
+      if (typeof resource !== "string" || resource.trim() === "") {
+        errors.push({ path: `${path}.resource`, message: "submitForm step requires a resource name." });
+      }
+      if (onSuccess) {
+        if (!Array.isArray(onSuccess)) {
+          errors.push({ path: `${path}.onSuccess`, message: "onSuccess must be an array of action steps." });
+        } else {
+          onSuccess.forEach((nested, index) => {
+            validateActionStep(nested, `${path}.onSuccess[${index}]`, nodeIds, errors);
+          });
+        }
+      }
+      if (onError) {
+        if (!Array.isArray(onError)) {
+          errors.push({ path: `${path}.onError`, message: "onError must be an array of action steps." });
+        } else {
+          onError.forEach((nested, index) => {
+            validateActionStep(nested, `${path}.onError[${index}]`, nodeIds, errors);
+          });
+        }
       }
       break;
     }

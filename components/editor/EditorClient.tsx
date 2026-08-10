@@ -629,7 +629,11 @@ export function EditorClient({ portfolioId, initialDocument, status, slug }: Edi
   );
 
   const resourcesPanel = (
-    <ResourcesPanelEditor document={session.getDocument()} onCommand={handleCommand} />
+    <ResourcesPanelEditor
+      document={session.getDocument()}
+      portfolioId={portfolioId}
+      onCommand={handleCommand}
+    />
   );
 
   const leftPanel = (

@@ -115,6 +115,9 @@ function renderStyledNode(
     const scope: BindingScope = context.bindingScope ?? {};
     styledProps = resolveProps(styledProps, scope);
   }
+  if (context.resources && node.type === "Form") {
+    styledProps = { ...styledProps, _resources: context.resources };
+  }
   const { Component, props } = selectRenderer(
     node,
     definition,

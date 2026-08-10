@@ -12,6 +12,9 @@ function nodeNeedsRuntime(
   if (containsBinding(node.props)) {
     return true;
   }
+  if (node.type === "Form") {
+    return true;
+  }
   const definition = registry.get(node.type);
   if (definition?.runtime === "client") {
     return true;

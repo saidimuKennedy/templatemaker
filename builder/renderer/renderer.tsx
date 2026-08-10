@@ -23,6 +23,9 @@ function renderNode(node: BuilderNode, context: RenderContext): ReactElement {
     const scope: BindingScope = context.bindingScope ?? {};
     resolvedProps = resolveProps(resolvedProps, scope);
   }
+  if (context.resources && node.type === "Form") {
+    resolvedProps = { ...resolvedProps, _resources: context.resources };
+  }
   const { Component, props } = selectRenderer(node, definition, {
     ...mergePageLinksIntoProps(node, resolvedProps, context.pages, context.basePath),
     showEmptyPlaceholder: shouldShowEmptyPlaceholder(node, context.target),

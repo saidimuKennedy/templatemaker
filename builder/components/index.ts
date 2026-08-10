@@ -13,6 +13,12 @@ export * from "./navbar";
 export * from "./footer";
 export * from "./link";
 export * from "./link-block";
+export * from "./form";
+export * from "./input";
+export * from "./textarea";
+export * from "./select";
+export * from "./checkbox";
+export * from "./submit-button";
 
 import type { ComponentRegistry } from "../registry/types";
 import { PageComponent } from "./page";
@@ -29,6 +35,12 @@ import { NavbarComponent } from "./navbar";
 import { FooterComponent } from "./footer";
 import { LinkComponent } from "./link";
 import { LinkBlockComponent } from "./link-block";
+import { FormComponent } from "./form";
+import { InputComponent } from "./input";
+import { TextareaComponent } from "./textarea";
+import { SelectComponent } from "./select";
+import { CheckboxComponent } from "./checkbox";
+import { SubmitButtonComponent } from "./submit-button";
 
 export function registerBuiltInComponents(registry: ComponentRegistry): void {
   registry.register(PageComponent);
@@ -45,4 +57,10 @@ export function registerBuiltInComponents(registry: ComponentRegistry): void {
   registry.register(FooterComponent);
   registry.register(LinkComponent);
   registry.register(LinkBlockComponent);
+  registry.register(FormComponent);
+  registry.register(InputComponent);
+  registry.register(TextareaComponent);
+  registry.register(SelectComponent);
+  registry.register(CheckboxComponent);
+  registry.register(SubmitButtonComponent);
 }

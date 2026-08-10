@@ -24,7 +24,7 @@ export function selectRenderer(
   props: NodeProps,
   enableRuntime: boolean,
 ): { readonly Component: ComponentRenderer; readonly props: NodeProps } {
-  if (enableRuntime && nodeHasEvents(node) && definition.clientRenderer) {
+  if (enableRuntime && definition.clientRenderer && (nodeHasEvents(node) || definition.runtime === "client")) {
     return {
       Component: definition.clientRenderer,
       props: { ...props, events: node.events, eventOptions: node.eventOptions },

@@ -5,6 +5,10 @@ import { isBinding, type Binding } from "./types";
 export interface BindingScope {
   readonly data?: Readonly<Record<string, unknown>>;
   readonly route?: { readonly params?: Readonly<Record<string, string>> };
+  /**
+   * Structured form scope: `{ values, errors, submitting, submitted }`.
+   * Never flat field keys at the root — see Plan 32 / ADR-012 §4.
+   */
   readonly form?: Readonly<Record<string, unknown>>;
   readonly user?: Readonly<Record<string, unknown>>;
   readonly vars?: Readonly<Record<string, unknown>>;

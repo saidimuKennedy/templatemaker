@@ -7,6 +7,7 @@ import {
   validateDocumentStructure,
 } from "@/builder/document/validate";
 import { validateDocumentEvents } from "@/builder/document/validate-events";
+import { validateDocumentForms } from "@/builder/document/validate-forms";
 import { validateDocumentResources } from "@/builder/document/validate";
 import type { BuilderDocument, BuilderNode, BuilderPage, ValidationResult } from "@/builder/document/types";
 import type { ComponentRegistry } from "@/builder/registry/types";
@@ -34,18 +35,21 @@ export function validatePortfolioDocument(
   const registryResult = validateAgainstRegistry(document, registry);
   const eventsResult = validateDocumentEvents(document);
   const resourcesResult = validateDocumentResources(document);
+  const formsResult = validateDocumentForms(document);
 
   return {
     valid:
       structure.valid &&
       registryResult.valid &&
       eventsResult.valid &&
-      resourcesResult.valid,
+      resourcesResult.valid &&
+      formsResult.valid,
     errors: [
       ...structure.errors,
       ...registryResult.errors,
       ...eventsResult.errors,
       ...resourcesResult.errors,
+      ...formsResult.errors,
     ],
   };
 }
@@ -134,6 +138,7 @@ function renderResponsivePage(
     pages: document.pages,
     basePath,
     enableRuntime: needsRuntime,
+    resources: document.resources,
   });
   const stylesheet = buildResponsiveStylesheet(document);
 

@@ -73,6 +73,13 @@ export type ActionStep =
       readonly type: "closeModal";
       readonly nodeId: NodeId;
       readonly when?: Condition;
+    }
+  | {
+      readonly type: "submitForm";
+      readonly resource: string;
+      readonly onSuccess?: readonly ActionStep[];
+      readonly onError?: readonly ActionStep[];
+      readonly when?: Condition;
     };
 
 export const EVENT_NAMES: readonly EventName[] = ["onClick", "onSubmit", "onChange"];
@@ -83,6 +90,7 @@ export const ACTION_STEP_TYPES = [
   "notify",
   "openModal",
   "closeModal",
+  "submitForm",
 ] as const;
 
 export type ActionStepType = (typeof ACTION_STEP_TYPES)[number];
@@ -93,6 +101,7 @@ export const ACTION_LABELS: Record<ActionStepType, string> = {
   notify: "Notify",
   openModal: "Open modal",
   closeModal: "Close modal",
+  submitForm: "Submit form",
 };
 
 export function isCondition(value: unknown): value is Condition {

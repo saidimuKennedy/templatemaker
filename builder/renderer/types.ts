@@ -6,6 +6,7 @@
  */
 
 import type { ReactElement } from "react";
+import type { ResourceDefinition } from "../resources/types";
 import type { BindingScope } from "../bindings/resolve";
 import type { BuilderDocument, BuilderPage } from "../document/types";
 import type { ComponentRegistry } from "../registry/types";
@@ -36,6 +37,8 @@ export interface RenderContext {
   readonly bindingScope?: BindingScope;
   /** When true, resolve bindings and attach event handlers (client runtime). */
   readonly enableRuntime?: boolean;
+  /** Project resource definitions — used by Form for honeypot and field constraints. */
+  readonly resources?: readonly ResourceDefinition[];
 }
 
 /**

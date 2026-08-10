@@ -64,6 +64,7 @@ const ADD_INTERACTION_PRESETS: readonly {
 }[] = [
   { eventName: "onClick", actionType: "openModal" },
   { eventName: "onClick", actionType: "navigate" },
+  { eventName: "onSubmit", actionType: "submitForm" },
   { eventName: "onSubmit", actionType: "notify" },
   { eventName: "onChange", actionType: "setVariable" },
 ];
@@ -80,6 +81,8 @@ function defaultStepForType(type: ActionStepType): ActionStep {
       return { type: "openModal", nodeId: "" };
     case "closeModal":
       return { type: "closeModal", nodeId: "" };
+    case "submitForm":
+      return { type: "submitForm", resource: "" };
   }
 }
 
@@ -470,6 +473,17 @@ function TargetEditor({
         placeholder="Variable name"
         value={step.name}
         onChange={(event) => onChange({ ...step, name: event.target.value })}
+      />
+    );
+  }
+
+  if (step.type === "submitForm") {
+    return (
+      <Input
+        className="h-8 text-xs"
+        placeholder="Resource name"
+        value={step.resource}
+        onChange={(event) => onChange({ ...step, resource: event.target.value })}
       />
     );
   }

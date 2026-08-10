@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DEFAULT_RESOURCE_PERMISSIONS,
   RESOURCE_FIELD_TYPES,
@@ -27,6 +27,7 @@ import { RESOURCES_DATA_TAB_DOC_PATH } from "@/lib/dev-docs/constants";
 
 type ResourcesPanelEditorProps = {
   readonly document: BuilderDocument;
+  readonly portfolioId: string;
   readonly onCommand: (command: Command) => void;
 };
 
@@ -43,9 +44,10 @@ function emptyResource(): ResourceDefinition {
   };
 }
 
-export function ResourcesPanelEditor({ document, onCommand }: ResourcesPanelEditorProps) {
+export function ResourcesPanelEditor({ document, portfolioId, onCommand }: ResourcesPanelEditorProps) {
   const resources = document.resources ?? [];
   const [draft, setDraft] = useState<ResourceDefinition | null>(null);
+  const [viewingRecordsFor, setViewingRecordsFor] = useState<string | null>(null);
 
   const startCreate = () => {
     setDraft(emptyResource());
@@ -141,6 +143,22 @@ export function ResourcesPanelEditor({ document, onCommand }: ResourcesPanelEdit
               {resource.fields.length} field{resource.fields.length === 1 ? "" : "s"} · API:{" "}
               <code className="text-[10px]">/api/records/{resource.name}</code>
             </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-2 h-7 w-full text-[11px]"
+              onClick={() =>
+                setViewingRecordsFor((current) =>
+                  current === resource.name ? null : resource.name,
+                )
+              }
+            >
+              {viewingRecordsFor === resource.name ? "Hide submissions" : "View submissions"}
+            </Button>
+            {viewingRecordsFor === resource.name ? (
+              <ResourceSubmissions portfolioId={portfolioId} resource={resource} />
+            ) : null}
           </div>
         ))}
 
@@ -293,4 +311,96 @@ export function ResourcesPanelEditor({ document, onCommand }: ResourcesPanelEdit
       </div>
     </div>
   );
+}
+
+type ResourceSubmissionsProps = {
+  readonly portfolioId: string;
+  readonly resource: ResourceDefinition;
+};
+
+function ResourceSubmissions({ portfolioId, resource }: ResourceSubmissionsProps) {
+  const [records, setRecords] = useState<readonly Record<string, unknown>[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    void fetch(
+      `/api/platform/portfolios/${encodeURIComponent(portfolioId)}/records/${encodeURIComponent(resource.name)}`,
+    )
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? "Failed to load submissions.");
+        }
+        return response.json() as Promise<{ data: readonly Record<string, unknown>[] }>;
+      })
+      .then((body) => {
+        if (!cancelled) {
+          setRecords(body.data);
+        }
+      })
+      .catch((fetchError: unknown) => {
+        if (!cancelled) {
+          setError(fetchError instanceof Error ? fetchError.message : "Failed to load submissions.");
+          setRecords([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [portfolioId, resource.name]);
+
+  if (loading) {
+    return <p className="mt-2 text-[11px] text-muted-foreground">Loading submissions…</p>;
+  }
+
+  if (error) {
+    return <p className="mt-2 text-[11px] text-destructive">{error}</p>;
+  }
+
+  if (!records || records.length === 0) {
+    return <p className="mt-2 text-[11px] text-muted-foreground">No submissions yet.</p>;
+  }
+
+  return (
+    <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded border border-border/70 bg-muted/10 p-2">
+      {records.map((record) => (
+        <div key={String(record.id)} className="rounded border border-border/60 bg-background p-2">
+          <p className="text-[10px] text-muted-foreground">
+            {typeof record.createdAt === "string"
+              ? new Date(record.createdAt).toLocaleString()
+              : "Unknown date"}
+          </p>
+          <dl className="mt-1 space-y-0.5">
+            {resource.fields.map((field) => (
+              <div key={field.name} className="grid grid-cols-[minmax(0,5rem)_1fr] gap-2">
+                <dt className="truncate text-[10px] text-muted-foreground">{field.label ?? field.name}</dt>
+                <dd className="truncate text-[11px]">{formatSubmissionValue(record[field.name])}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatSubmissionValue(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "—";
+  }
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+  return String(value);
 }
